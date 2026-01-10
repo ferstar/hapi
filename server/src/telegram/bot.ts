@@ -8,7 +8,7 @@
 import { Bot, Context, InlineKeyboard } from 'grammy'
 import { SyncEngine, Session } from '../sync/syncEngine'
 import { handleCallback, CallbackContext } from './callbacks'
-import { formatSessionNotification, createNotificationKeyboard } from './sessionView'
+import { formatSessionNotification, createNotificationKeyboard, buildMiniAppDeepLink } from './sessionView'
 import { getAgentName, getSessionName } from '../notifications/sessionInfo'
 import type { NotificationChannel } from '../notifications/notificationTypes'
 import type { Store } from '../store'
@@ -366,15 +366,5 @@ export class HappyBot implements NotificationChannel {
             clearTimeout(existing.timer)
         }
         this.retryStates.delete(key)
-    }
-}
-
-function buildSessionLink(baseUrl: string, sessionId: string): string {
-    try {
-        const url = new URL(baseUrl)
-        return `${url.origin}/sessions/${sessionId}`
-    } catch {
-        const trimmed = baseUrl.replace(/\/+$/, '')
-        return `${trimmed}/sessions/${sessionId}`
     }
 }

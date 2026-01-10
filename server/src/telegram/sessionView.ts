@@ -133,7 +133,7 @@ function formatToolArgumentsDetailed(tool: string, args: any): string {
     }
 }
 
-function buildMiniAppDeepLink(baseUrl: string, startParam: string): string {
+export function buildMiniAppDeepLink(baseUrl: string, startParam: string): string {
     try {
         const url = new URL(baseUrl)
         url.searchParams.set('startapp', startParam)
