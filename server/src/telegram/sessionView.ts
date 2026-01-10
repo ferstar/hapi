@@ -53,17 +53,11 @@ export function createNotificationKeyboard(session: Session, miniAppUrl: string)
             .text('Deny', createCallbackData(ACTIONS.DENY, session.id, reqPrefix))
         keyboard.row()
 
-        keyboard.webApp(
-            'Details',
-            buildMiniAppDeepLink(miniAppUrl, `session_${session.id}`)
-        )
+        keyboard.webApp('Details', buildMiniAppDeepLink(miniAppUrl, `session_${session.id}`))
         return keyboard
     }
 
-    keyboard.webApp(
-        'Open Session',
-        buildMiniAppDeepLink(miniAppUrl, `session_${session.id}`)
-    )
+    keyboard.webApp('Open Session', buildMiniAppDeepLink(miniAppUrl, `session_${session.id}`))
     return keyboard
 }
 
@@ -139,7 +133,7 @@ function formatToolArgumentsDetailed(tool: string, args: any): string {
     }
 }
 
-function buildMiniAppDeepLink(baseUrl: string, startParam: string): string {
+export function buildMiniAppDeepLink(baseUrl: string, startParam: string): string {
     try {
         const url = new URL(baseUrl)
         url.searchParams.set('startapp', startParam)
