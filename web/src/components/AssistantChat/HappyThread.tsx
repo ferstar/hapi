@@ -9,6 +9,7 @@ import { HappySystemMessage } from '@/components/AssistantChat/messages/SystemMe
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/Spinner'
 import { useTranslation } from '@/lib/use-translation'
+import { isTelegramEnvironment } from '@/hooks/useTelegram'
 
 function NewMessagesIndicator(props: { count: number; onClick: () => void }) {
     const { t } = useTranslation()
@@ -146,6 +147,45 @@ export function HappyThread(props: {
         return () => viewport.removeEventListener('scroll', handleScroll)
     }, []) // Stable: no dependencies, reads from refs
 
+    useEffect(() => {
+        const viewport = viewportRef.current
+        if (!viewport || !isTelegramEnvironment()) {
+            return
+        }
+
+        let startY = 0
+        let startScrollTop = 0
+
+        const onTouchStart = (event: TouchEvent) => {
+            if (event.touches.length !== 1) return
+            startY = event.touches[0]?.clientY ?? 0
+            startScrollTop = viewport.scrollTop
+        }
+
+        const onTouchMove = (event: TouchEvent) => {
+            if (event.touches.length !== 1) return
+            if (!event.cancelable) return
+            if (!isLoadingMoreRef.current) return
+
+            const currentY = event.touches[0]?.clientY ?? 0
+            const deltaY = currentY - startY
+            const atTop = startScrollTop <= 0
+            const atBottom = startScrollTop + viewport.clientHeight >= viewport.scrollHeight - 1
+
+            if ((deltaY > 0 && atTop) || (deltaY < 0 && atBottom)) {
+                event.preventDefault()
+            }
+        }
+
+        viewport.addEventListener('touchstart', onTouchStart, { passive: true })
+        viewport.addEventListener('touchmove', onTouchMove, { passive: false })
+
+        return () => {
+            viewport.removeEventListener('touchstart', onTouchStart)
+            viewport.removeEventListener('touchmove', onTouchMove)
+        }
+    }, [])
+
     // Scroll to bottom handler for the indicator button
     const scrollToBottom = useCallback(() => {
         const viewport = viewportRef.current
@@ -277,7 +317,7 @@ export function HappyThread(props: {
         }}>
             <ThreadPrimitive.Root className="flex min-h-0 flex-1 flex-col relative">
                 <ThreadPrimitive.Viewport asChild autoScroll={autoScrollEnabled}>
-                    <div ref={viewportRef} className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
+                    <div ref={viewportRef} className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden tg-scroll-viewport">
                         <div className="mx-auto w-full max-w-content min-w-0 p-3">
                             <div ref={topSentinelRef} className="h-px w-full" aria-hidden="true" />
                             {props.isLoadingMessages ? (

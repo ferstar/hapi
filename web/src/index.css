@@ -2,6 +2,16 @@
 @config "../tailwind.config.ts";
 
 :root {
+    --app-viewport-height: var(--tg-viewport-height, 100dvh);
+    --app-viewport-stable-height: var(--tg-viewport-stable-height, 100dvh);
+    --app-safe-area-top: env(safe-area-inset-top, 0px);
+    --app-safe-area-bottom: env(safe-area-inset-bottom, 0px);
+    --app-safe-area-left: env(safe-area-inset-left, 0px);
+    --app-safe-area-right: env(safe-area-inset-right, 0px);
+    --app-content-safe-area-top: var(--app-safe-area-top);
+    --app-content-safe-area-bottom: var(--app-safe-area-bottom);
+    --app-content-safe-area-left: var(--app-safe-area-left);
+    --app-content-safe-area-right: var(--app-safe-area-right);
     --app-bg: var(--tg-theme-bg-color, #ffffff);
     --app-fg: var(--tg-theme-text-color, #111827);
     --app-hint: var(--tg-theme-hint-color, #6b7280);
@@ -89,9 +99,8 @@
 
 html,
 body {
-    height: 100vh;
-    height: 100dvh;
-    height: var(--tg-viewport-stable-height, 100dvh);
+    height: var(--app-viewport-height);
+    min-height: var(--app-viewport-stable-height);
     overflow: hidden;
     touch-action: pan-x pan-y;
     overscroll-behavior: none;
@@ -101,6 +110,13 @@ body {
 body {
     background: var(--app-bg);
     color: var(--app-fg);
+}
+
+.tg-scroll-viewport {
+    overscroll-behavior-y: contain;
+    overscroll-behavior-x: none;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
 }
 
 #root {
