@@ -184,7 +184,7 @@ export default function TerminalPage() {
 
     return (
         <div className="flex h-full flex-col">
-            <div className="bg-[var(--app-bg)] pt-[env(safe-area-inset-top)]">
+            <div className="bg-[var(--app-bg)] pt-[var(--app-safe-area-top)]">
                 <div className="mx-auto w-full max-w-content flex items-center gap-2 p-3 border-b border-[var(--app-border)]">
                     <button
                         type="button"
@@ -235,7 +235,7 @@ export default function TerminalPage() {
                 </div>
             </div>
 
-            <div className="bg-[var(--app-bg)] border-t border-[var(--app-border)] pb-[env(safe-area-inset-bottom)]">
+            <div className="bg-[var(--app-bg)] border-t border-[var(--app-border)] pb-[var(--app-safe-area-bottom)]">
                 <div className="mx-auto w-full max-w-content px-3">
                     <div className="flex items-stretch overflow-hidden rounded-md bg-[var(--app-secondary-bg)]">
                         {QUICK_INPUTS.map((input) => (

@@ -6,6 +6,7 @@ import { RouterProvider, createMemoryHistory } from '@tanstack/react-router'
 import './index.css'
 import { registerSW } from 'virtual:pwa-register'
 import { getTelegramWebApp, isTelegramEnvironment, loadTelegramSdk } from './hooks/useTelegram'
+import { initializeTelegramSdk } from './lib/telegram-sdk'
 import { queryClient } from './lib/query-client'
 import { createAppRouter } from './router'
 import { I18nProvider } from './lib/i18n-context'
@@ -36,6 +37,7 @@ async function bootstrap() {
     const isTelegram = isTelegramEnvironment()
     if (isTelegram) {
         await loadTelegramSdk()
+        initializeTelegramSdk()
     }
 
     const updateSW = registerSW({
