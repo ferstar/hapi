@@ -8,7 +8,7 @@
 import { Bot, Context, InlineKeyboard } from 'grammy'
 import { SyncEngine, Session } from '../sync/syncEngine'
 import { handleCallback, CallbackContext } from './callbacks'
-import { formatSessionNotification, createNotificationKeyboard } from './sessionView'
+import { formatSessionNotification, createNotificationKeyboard, buildMiniAppDeepLink } from './sessionView'
 import { getAgentName, getSessionName } from '../notifications/sessionInfo'
 import type { NotificationChannel } from '../notifications/notificationTypes'
 import type { Store } from '../store'
@@ -227,7 +227,7 @@ export class HappyBot implements NotificationChannel {
         const agentName = getAgentName(session)
         const sessionName = getSessionName(session)
         const directory = session.metadata?.path ?? null
-        const url = buildSessionLink(this.miniAppUrl, session.id)
+        const url = buildMiniAppDeepLink(this.miniAppUrl, `session_${session.id}`)
         const lines = [
             'Session ready.',
             '',
@@ -244,7 +244,8 @@ export class HappyBot implements NotificationChannel {
             return
         }
 
-        await this.sendWithRetry('ready', session, chatIds, message)
+        const keyboard = new InlineKeyboard().webApp('Open Session', url)
+        await this.sendWithRetry('ready', session, chatIds, message, keyboard)
     }
 
     /**
@@ -369,15 +370,5 @@ export class HappyBot implements NotificationChannel {
             clearTimeout(existing.timer)
         }
         this.retryStates.delete(key)
-    }
-}
-
-function buildSessionLink(baseUrl: string, sessionId: string): string {
-    try {
-        const url = new URL(baseUrl)
-        return `${url.origin}/sessions/${sessionId}`
-    } catch {
-        const trimmed = baseUrl.replace(/\/+$/, '')
-        return `${trimmed}/sessions/${sessionId}`
     }
 }
