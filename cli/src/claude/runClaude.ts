@@ -25,6 +25,8 @@ export interface StartOptions {
     claudeEnvVars?: Record<string, string>
     claudeArgs?: string[]
     startedBy?: 'daemon' | 'terminal'
+    forceNewSession?: boolean
+    sessionTag?: string
 }
 
 export async function runClaude(options: StartOptions = {}): Promise<void> {
@@ -48,7 +50,9 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
         flavor: 'claude',
         startedBy,
         workingDirectory,
-        agentState: initialState
+        agentState: initialState,
+        forceNewSession: options.forceNewSession,
+        tag: options.sessionTag
     });
     logger.debug(`Session created: ${sessionInfo.id}`);
 

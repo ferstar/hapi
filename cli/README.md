@@ -26,6 +26,10 @@ Run Claude Code, Codex, or Gemini sessions from your terminal and control them r
 - `hapi codex` - Start Codex mode. See `src/codex/runCodex.ts`.
 - `hapi gemini` - Start Gemini mode via ACP. See `src/agent/runners/runAgentSession.ts`.
   Note: Gemini runs in remote mode only; it waits for messages from the server UI/Telegram.
+- `hapi --new-session` - Start a fresh server session instead of reusing the default tag.
+- `hapi --session-tag <tag>` - Force a specific server session tag.
+- `hapi codex --new-session` - Same as above for Codex mode.
+- `hapi codex --session-tag <tag>` - Same as above for Codex mode.
 
 ### Authentication
 
@@ -74,6 +78,7 @@ See `src/configuration.ts` for all options.
 - `HAPI_HOME` - Config/data directory (default: ~/.hapi).
 - `HAPI_EXPERIMENTAL` - Enable experimental features (true/1/yes).
 - `HAPI_CLAUDE_PATH` - Path to a specific `claude` executable.
+- `HAPI_SESSION_TAG` - Override the default session tag (ignored if `--new-session` or `--session-tag` is used).
 - `HAPI_HTTP_MCP_URL` - Default MCP target for `hapi mcp`.
 - `HAPI_CODEX_CONNECT_TIMEOUT_MS` - MCP connect timeout in ms (default: 60000).
 - `HAPI_CODEX_STALL_MIN_MS` - Minimum stall timeout in ms (default: 120000).
