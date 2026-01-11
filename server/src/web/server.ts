@@ -196,7 +196,7 @@ export async function startWebServer(options: {
     const server = Bun.serve({
         hostname: configuration.webappHost,
         port: configuration.webappPort,
-        idleTimeout: Math.max(30, socketHandler.idleTimeout),
+        idleTimeout: Math.max(configuration.webIdleTimeoutMs / 1000, socketHandler.idleTimeout),
         maxRequestBodySize: socketHandler.maxRequestBodySize,
         websocket: socketHandler.websocket,
         fetch: (req, server) => {

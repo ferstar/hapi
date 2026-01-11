@@ -43,6 +43,7 @@ export class PushService {
         }
 
         const body = JSON.stringify(payload)
+        console.log(`[Push] Send: namespace=${namespace} subs=${subscriptions.length} tag=${payload.tag ?? 'none'}`)
         await Promise.all(subscriptions.map((subscription) => {
             return this.sendToSubscription(namespace, subscription, body)
         }))

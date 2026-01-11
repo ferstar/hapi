@@ -3,12 +3,14 @@ export type VisibilityState = 'visible' | 'hidden'
 export class VisibilityTracker {
     private readonly visibleConnections = new Map<string, Set<string>>()
     private readonly subscriptionToNamespace = new Map<string, string>()
+    private readonly lastVisibleByNamespace = new Map<string, number>()
 
     registerConnection(subscriptionId: string, namespace: string, state: VisibilityState): void {
         this.removeConnection(subscriptionId)
         this.subscriptionToNamespace.set(subscriptionId, namespace)
         if (state === 'visible') {
             this.addVisibleConnection(namespace, subscriptionId)
+            this.markVisible(namespace)
         }
     }
 
@@ -20,6 +22,7 @@ export class VisibilityTracker {
 
         if (state === 'visible') {
             this.addVisibleConnection(trackedNamespace, subscriptionId)
+            this.markVisible(trackedNamespace)
             return true
         }
 
@@ -40,6 +43,25 @@ export class VisibilityTracker {
     hasVisibleConnection(namespace: string): boolean {
         const visible = this.visibleConnections.get(namespace)
         return Boolean(visible && visible.size > 0)
+    }
+
+    hasRecentVisibleActivity(namespace: string, windowMs: number): boolean {
+        const lastVisible = this.lastVisibleByNamespace.get(namespace)
+        if (!lastVisible) {
+            return false
+        }
+        return Date.now() - lastVisible <= windowMs
+    }
+
+    hasRecentVisibleConnection(namespace: string, windowMs: number): boolean {
+        if (!this.hasVisibleConnection(namespace)) {
+            return false
+        }
+        return this.hasRecentVisibleActivity(namespace, windowMs)
+    }
+
+    markVisible(namespace: string): void {
+        this.lastVisibleByNamespace.set(namespace, Date.now())
     }
 
     isVisibleConnection(subscriptionId: string): boolean {

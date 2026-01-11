@@ -13,6 +13,7 @@ export type SSESubscription = {
 type SSEConnection = SSESubscription & {
     send: (event: SyncEvent) => void | Promise<void>
     sendHeartbeat: () => void | Promise<void>
+    userAgent: string
 }
 
 export class SSEManager {
@@ -33,6 +34,7 @@ export class SSEManager {
         sessionId?: string | null
         machineId?: string | null
         visibility?: VisibilityState
+        userAgent?: string
         send: (event: SyncEvent) => void | Promise<void>
         sendHeartbeat: () => void | Promise<void>
     }): SSESubscription {
@@ -43,7 +45,8 @@ export class SSEManager {
             sessionId: options.sessionId ?? null,
             machineId: options.machineId ?? null,
             send: options.send,
-            sendHeartbeat: options.sendHeartbeat
+            sendHeartbeat: options.sendHeartbeat,
+            userAgent: options.userAgent ?? ''
         }
 
         this.connections.set(subscription.id, subscription)
@@ -52,6 +55,9 @@ export class SSEManager {
             subscription.namespace,
             options.visibility ?? 'hidden'
         )
+        if (this.visibilityTracker.isVisibleConnection(subscription.id)) {
+            this.visibilityTracker.markVisible(subscription.namespace)
+        }
         this.ensureHeartbeat()
         return {
             id: subscription.id,
@@ -104,6 +110,27 @@ export class SSEManager {
         return successCount
     }
 
+    hasAnyConnection(namespace: string): boolean {
+        for (const connection of this.connections.values()) {
+            if (connection.namespace === namespace) {
+                return true
+            }
+        }
+        return false
+    }
+
+    hasPcConnection(namespace: string): boolean {
+        for (const connection of this.connections.values()) {
+            if (connection.namespace !== namespace) {
+                continue
+            }
+            if (isPcUserAgent(connection.userAgent)) {
+                return true
+            }
+        }
+        return false
+    }
+
     broadcast(event: SyncEvent): void {
         for (const connection of this.connections.values()) {
             if (!this.shouldSend(connection, event)) {
@@ -131,6 +158,9 @@ export class SSEManager {
 
         this.heartbeatTimer = setInterval(() => {
             for (const connection of this.connections.values()) {
+                if (this.visibilityTracker.isVisibleConnection(connection.id)) {
+                    this.visibilityTracker.markVisible(connection.namespace)
+                }
                 void Promise.resolve(connection.sendHeartbeat()).catch(() => {
                     this.unsubscribe(connection.id)
                 })
@@ -177,4 +207,18 @@ export class SSEManager {
 
         return false
     }
+}
+
+export function isPcUserAgent(userAgent: string): boolean {
+    if (!userAgent) {
+        return false
+    }
+    const ua = userAgent.toLowerCase()
+    if (ua.includes('telegram')) {
+        return false
+    }
+    if (ua.includes('mobile') || ua.includes('android') || ua.includes('iphone') || ua.includes('ipad')) {
+        return false
+    }
+    return true
 }

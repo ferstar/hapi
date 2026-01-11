@@ -14,6 +14,14 @@ export interface Settings {
     // Server configuration (persisted from environment variables)
     telegramBotToken?: string
     telegramNotification?: boolean
+    telegramNotificationVisibleWindowMs?: number
+    telegramNotificationRetryBaseDelayMs?: number
+    telegramNotificationRetryMaxAttempts?: number
+    pushNotificationVisibleWindowMs?: number
+    pushNotificationRetryBaseDelayMs?: number
+    pushNotificationRetryMaxAttempts?: number
+    sseHeartbeatMs?: number
+    webIdleTimeoutMs?: number
     webappHost?: string
     webappPort?: number
     webappUrl?: string

@@ -44,6 +44,7 @@ export function createSocketServer(deps: SocketServerDeps): {
     io: SocketServer
     engine: Engine
     rpcRegistry: RpcRegistry
+    terminalRegistry: TerminalRegistry
 } {
     const corsOrigins = configuration.corsOrigins
     const allowAllOrigins = corsOrigins.includes('*')
@@ -144,5 +145,5 @@ export function createSocketServer(deps: SocketServerDeps): {
         maxTerminalsPerSession
     }))
 
-    return { io, engine, rpcRegistry }
+    return { io, engine, rpcRegistry, terminalRegistry }
 }
