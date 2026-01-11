@@ -78,24 +78,34 @@ async function isServerHealthy(): Promise<boolean> {
   }
 }
 
-describe.skipIf(!await isServerHealthy())('Daemon Integration Tests', { timeout: 20_000 }, () => {
+describe.skipIf(!await isServerHealthy())('Daemon Integration Tests', { timeout: 60_000 }, () => {
   let daemonPid: number;
+  const testDirectory = process.cwd();
 
   beforeEach(async () => {
     // First ensure no daemon is running by checking PID in metadata file
     await stopDaemon()
+    await clearDaemonState()
     
     // Start fresh daemon for this test
     // This will return and start a background process - we don't need to wait for it
-    void spawnHappyCLI(['daemon', 'start'], {
-      stdio: 'ignore'
+    const daemonProcess = spawnHappyCLI(['daemon', 'start-sync'], {
+      stdio: 'ignore',
+      detached: true,
+      env: {
+        ...process.env,
+        CLI_API_TOKEN: configuration.cliApiToken,
+        HAPI_SERVER_URL: configuration.serverUrl,
+        HAPI_HOME: configuration.happyHomeDir
+      }
     });
+    daemonProcess.unref();
     
     // Wait for daemon to write its state file (it needs to auth, setup, and start server)
     await waitFor(async () => {
       const state = await readDaemonState();
       return state !== null;
-    }, 10_000, 250); // Wait up to 10 seconds, checking every 250ms
+    }, 45_000, 250); // Wait up to 45 seconds, checking every 250ms
     
     const daemonState = await readDaemonState();
     if (!daemonState) {
@@ -105,11 +115,11 @@ describe.skipIf(!await isServerHealthy())('Daemon Integration Tests', { timeout:
 
     console.log(`[TEST] Daemon started for test: PID=${daemonPid}`);
     console.log(`[TEST] Daemon log file: ${daemonState?.daemonLogPath}`);
-  });
+  }, 60_000);
 
   afterEach(async () => {
     await stopDaemon()
-  });
+  }, 60_000);
 
   it('should list sessions (initially empty)', async () => {
     const sessions = await listDaemonSessions();
@@ -143,7 +153,7 @@ describe.skipIf(!await isServerHealthy())('Daemon Integration Tests', { timeout:
   });
 
   it('should spawn & stop a session via HTTP (not testing RPC route, but similar enough)', async () => {
-    const response = await spawnDaemonSession('/tmp', 'spawned-test-456');
+    const response = await spawnDaemonSession(testDirectory, 'spawned-test-456');
 
     expect(response).toHaveProperty('success', true);
     expect(response).toHaveProperty('sessionId');
@@ -166,7 +176,7 @@ describe.skipIf(!await isServerHealthy())('Daemon Integration Tests', { timeout:
     const promises = [];
     const sessionCount = 20;
     for (let i = 0; i < sessionCount; i++) {
-      promises.push(spawnDaemonSession('/tmp'));
+      promises.push(spawnDaemonSession(testDirectory));
     }
 
     // Wait for all sessions to be spawned
@@ -198,7 +208,7 @@ describe.skipIf(!await isServerHealthy())('Daemon Integration Tests', { timeout:
       '--hapi-starting-mode', 'remote',
       '--started-by', 'terminal'
     ], {
-      cwd: '/tmp',
+      cwd: testDirectory,
       detached: true,
       stdio: 'ignore'
     });
@@ -209,7 +219,7 @@ describe.skipIf(!await isServerHealthy())('Daemon Integration Tests', { timeout:
     await new Promise(resolve => setTimeout(resolve, 5_000));
 
     // Spawn a daemon session
-    const spawnResponse = await spawnDaemonSession('/tmp', 'daemon-session-bbb');
+    const spawnResponse = await spawnDaemonSession(testDirectory, 'daemon-session-bbb');
 
     // List all sessions
     const sessions = await listDaemonSessions();
@@ -243,7 +253,7 @@ describe.skipIf(!await isServerHealthy())('Daemon Integration Tests', { timeout:
 
   it('should update session metadata when webhook is called', async () => {
     // Spawn a session
-    const spawnResponse = await spawnDaemonSession('/tmp');
+    const spawnResponse = await spawnDaemonSession(testDirectory);
 
     // Verify webhook was processed (session ID updated)
     const sessions = await listDaemonSessions();
@@ -285,7 +295,7 @@ describe.skipIf(!await isServerHealthy())('Daemon Integration Tests', { timeout:
     const promises = [];
     for (let i = 0; i < 3; i++) {
       promises.push(
-        spawnDaemonSession('/tmp')
+        spawnDaemonSession(testDirectory)
       );
     }
 

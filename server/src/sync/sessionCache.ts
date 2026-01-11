@@ -141,7 +141,9 @@ export class SessionCache {
 
         session.active = true
         session.activeAt = Math.max(session.activeAt, t)
-        session.thinking = Boolean(payload.thinking)
+        if (payload.thinking !== undefined) {
+            session.thinking = payload.thinking
+        }
         session.thinkingAt = t
         if (payload.permissionMode !== undefined) {
             session.permissionMode = payload.permissionMode
