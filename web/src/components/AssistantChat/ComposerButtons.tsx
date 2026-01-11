@@ -139,9 +139,11 @@ export function ComposerButtons(props: {
     onSettingsToggle: () => void
     showTerminalButton: boolean
     terminalDisabled: boolean
+    terminalConfirmActive: boolean
     onTerminal: () => void
     showFilesButton: boolean
     filesDisabled: boolean
+    filesConfirmActive: boolean
     onFiles: () => void
     abortDisabled: boolean
     isAborting: boolean
@@ -182,8 +184,8 @@ export function ComposerButtons(props: {
                 {props.showTerminalButton ? (
                     <button
                         type="button"
-                        aria-label={t('composer.terminal')}
-                        title={t('composer.terminal')}
+                        aria-label={props.terminalConfirmActive ? t('composer.terminalConfirm') : t('composer.terminal')}
+                        title={props.terminalConfirmActive ? t('composer.terminalConfirm') : t('composer.terminal')}
                         className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-fg)]/60 transition-colors hover:bg-[var(--app-bg)] hover:text-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
                         onClick={props.onTerminal}
                         disabled={props.terminalDisabled}
@@ -195,8 +197,8 @@ export function ComposerButtons(props: {
                 {props.showFilesButton ? (
                     <button
                         type="button"
-                        aria-label={t('session.title')}
-                        title={t('session.title')}
+                        aria-label={props.filesConfirmActive ? t('composer.filesConfirm') : t('session.title')}
+                        title={props.filesConfirmActive ? t('composer.filesConfirm') : t('session.title')}
                         className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-fg)]/60 transition-colors hover:bg-[var(--app-bg)] hover:text-[var(--app-fg)] disabled:cursor-not-allowed disabled:opacity-50"
                         onClick={props.onFiles}
                         disabled={props.filesDisabled}
