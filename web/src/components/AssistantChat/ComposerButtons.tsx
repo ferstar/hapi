@@ -124,15 +124,28 @@ function SendIcon() {
 
 export function ComposerButtons(props: {
     canSend: boolean
+    threadIsRunning: boolean
     controlsDisabled: boolean
+    showRenameButton: boolean
+    renameDisabled: boolean
+    onRename: () => void
+    showArchiveButton: boolean
+    archiveDisabled: boolean
+    onArchive: () => void
+    showDeleteButton: boolean
+    deleteDisabled: boolean
+    onDelete: () => void
     showSettingsButton: boolean
     onSettingsToggle: () => void
     showTerminalButton: boolean
     terminalDisabled: boolean
     onTerminal: () => void
-    showAbortButton: boolean
+    showFilesButton: boolean
+    filesDisabled: boolean
+    onFiles: () => void
     abortDisabled: boolean
     isAborting: boolean
+    abortConfirmActive: boolean
     onAbort: () => void
     showSwitchButton: boolean
     switchDisabled: boolean
@@ -179,16 +192,29 @@ export function ComposerButtons(props: {
                     </button>
                 ) : null}
 
-                {props.showAbortButton ? (
+                {props.showFilesButton ? (
                     <button
                         type="button"
-                        aria-label={t('composer.abort')}
-                        title={t('composer.abort')}
-                        disabled={props.abortDisabled}
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-fg)]/60 transition-colors hover:bg-[var(--app-bg)] hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-50"
-                        onClick={props.onAbort}
+                        aria-label={t('session.title')}
+                        title={t('session.title')}
+                        className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-fg)]/60 transition-colors hover:bg-[var(--app-bg)] hover:text-[var(--app-fg)] disabled:cursor-not-allowed disabled:opacity-50"
+                        onClick={props.onFiles}
+                        disabled={props.filesDisabled}
                     >
-                        <AbortIcon spinning={props.isAborting} />
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="18"
+                            height="18"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                        >
+                            <path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+                            <path d="M14 2v6h6" />
+                        </svg>
                     </button>
                 ) : null}
 
