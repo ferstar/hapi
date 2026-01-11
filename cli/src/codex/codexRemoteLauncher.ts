@@ -15,6 +15,7 @@ import { buildHapiMcpBridge } from './utils/buildHapiMcpBridge';
 import { emitReadyIfIdle } from './utils/emitReadyIfIdle';
 import type { CodexSession } from './session';
 import type { EnhancedMode } from './loop';
+import type { ServerShutdownPayload } from '@/api/types';
 import { hasCodexCliOverrides } from './utils/codexCliOverrides';
 import { buildCodexStartConfig } from './utils/codexStartConfig';
 import { convertCodexEvent } from './utils/codexEventConverter';
@@ -65,6 +66,7 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
     private ignoreEventsUntilNextRequest = false;
     private activeToolCalls = 0;
     private activePatchCalls = 0;
+    private serverShutdownHandler: ((payload: ServerShutdownPayload) => void) | null = null;
 
     constructor(session: CodexSession) {
         super(process.env.DEBUG ? session.logPath : undefined);
@@ -233,6 +235,29 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
         const session = this.session;
         const messageBuffer = this.messageBuffer;
         const client = this.client;
+        const handleServerShutdown = (payload: ServerShutdownPayload) => {
+            if (this.shouldExit) {
+                return;
+            }
+            const reason = payload?.reason ?? 'Server shutting down';
+            const graceMs = typeof payload?.graceMs === 'number' ? payload.graceMs : 0;
+            const note = `[server-shutdown][Codex] ${reason}`;
+            logger.warn(note);
+            messageBuffer.addMessage('Server shutting down; exiting...', 'status');
+            session.sendSessionEvent({ type: 'message', message: note });
+            const exit = async () => {
+                await this.requestExit('exit', async () => {
+                    await this.handleAbort({ resetQueue: true });
+                });
+            };
+            if (graceMs > 0) {
+                setTimeout(() => void exit(), graceMs);
+            } else {
+                void exit();
+            }
+        };
+        this.serverShutdownHandler = handleServerShutdown;
+        session.client.on('server-shutdown', handleServerShutdown);
 
         function findCodexResumeFile(sessionId: string | null): string | null {
             if (!sessionId) return null;
@@ -825,6 +850,10 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
         }
 
         this.clearAbortHandlers(this.session.client.rpcHandlerManager);
+        if (this.serverShutdownHandler) {
+            this.session.client.off('server-shutdown', this.serverShutdownHandler);
+            this.serverShutdownHandler = null;
+        }
 
         if (this.happyServer) {
             this.happyServer.stop();

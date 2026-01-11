@@ -6,7 +6,7 @@ import { io, type Socket } from 'socket.io-client'
 import { stat } from 'node:fs/promises'
 import { logger } from '@/ui/logger'
 import { configuration } from '@/configuration'
-import type { DaemonState, Machine, MachineMetadata, Update, UpdateMachineBody } from './types'
+import type { DaemonState, Machine, MachineMetadata, ServerShutdownPayload, Update, UpdateMachineBody } from './types'
 import { DaemonStateSchema, MachineMetadataSchema } from './types'
 import { backoff } from '@/utils/time'
 import { RpcHandlerManager } from './rpc/RpcHandlerManager'
@@ -17,6 +17,7 @@ import { applyVersionedAck } from './versionedUpdate'
 interface ServerToDaemonEvents {
     update: (data: Update) => void
     'rpc-request': (data: { method: string; params: string }, callback: (response: string) => void) => void
+    'server-shutdown': (data: ServerShutdownPayload) => void
     error: (data: { message: string }) => void
 }
 
@@ -66,6 +67,7 @@ export class ApiMachineClient {
     private socket!: Socket<ServerToDaemonEvents, DaemonToServerEvents>
     private keepAliveInterval: NodeJS.Timeout | null = null
     private rpcHandlerManager: RpcHandlerManager
+    private onServerShutdown: (() => void) | null = null
 
     constructor(
         private readonly token: string,
@@ -99,6 +101,7 @@ export class ApiMachineClient {
     }
 
     setRPCHandlers({ spawnSession, stopSession, requestShutdown }: MachineRpcHandlers): void {
+        this.onServerShutdown = requestShutdown
         this.rpcHandlerManager.registerHandler('spawn-happy-session', async (params: any) => {
             const { directory, sessionId, machineId, approvedNewDirectoryCreation, agent, yolo, token, sessionType, worktreeName } = params || {}
 
@@ -295,6 +298,23 @@ export class ApiMachineClient {
 
         this.socket.on('error', (payload) => {
             logger.debug('[API MACHINE] Socket error:', payload)
+        })
+
+        this.socket.on('server-shutdown', (payload: ServerShutdownPayload) => {
+            logger.debug('[API MACHINE] Received server shutdown signal', payload)
+            const graceMs = typeof payload?.graceMs === 'number' ? payload.graceMs : 0
+            const triggerShutdown = () => {
+                if (this.onServerShutdown) {
+                    this.onServerShutdown()
+                } else {
+                    this.shutdown()
+                }
+            }
+            if (graceMs > 0) {
+                setTimeout(triggerShutdown, graceMs)
+            } else {
+                triggerShutdown()
+            }
         })
     }
 

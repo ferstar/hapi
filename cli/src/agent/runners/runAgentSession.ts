@@ -1,4 +1,4 @@
-import type { AgentState } from '@/api/types';
+import type { AgentState, ServerShutdownPayload } from '@/api/types';
 import { logger } from '@/ui/logger';
 import { MessageQueue2 } from '@/utils/MessageQueue2';
 import { hashObject } from '@/utils/deterministicJson';
@@ -72,6 +72,18 @@ export async function runAgentSession(opts: {
     let thinking = false;
     let shouldExit = false;
     let waitAbortController: AbortController | null = null;
+    const handleServerShutdown = (payload: ServerShutdownPayload) => {
+        if (shouldExit) return;
+        const reason = payload?.reason ?? 'Server shutting down';
+        shouldExit = true;
+        logger.warn(`[ACP] Server shutdown: ${reason}`);
+        session.sendSessionEvent({ type: 'message', message: `[server-shutdown][ACP] ${reason}` });
+        messageQueue.close();
+        if (waitAbortController) {
+            waitAbortController.abort();
+        }
+    };
+    session.on('server-shutdown', handleServerShutdown);
 
     session.keepAlive(thinking, 'remote');
     const keepAliveInterval = setInterval(() => {
@@ -155,6 +167,7 @@ export async function runAgentSession(opts: {
             }
         }
     } finally {
+        session.off('server-shutdown', handleServerShutdown);
         clearInterval(keepAliveInterval);
         await permissionAdapter.cancelAll('Session ended');
         session.sendSessionDeath();
