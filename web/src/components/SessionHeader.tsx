@@ -1,6 +1,5 @@
 import { useMemo } from 'react'
 import type { Session } from '@/types/api'
-import type { ApiClient } from '@/api/client'
 import { isTelegramApp } from '@/hooks/useTelegram'
 import { useTranslation } from '@/lib/use-translation'
 
