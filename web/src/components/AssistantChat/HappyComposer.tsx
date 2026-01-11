@@ -446,7 +446,7 @@ export function HappyComposer(props: {
     const overlays = useMemo(() => {
         if (showSettings && (showPermissionSettings || showModelSettings)) {
             return (
-                <div className="absolute bottom-[100%] mb-2 w-full">
+                <div className="absolute bottom-[100%] right-0 mb-2 w-fit min-w-[200px]">
                     <FloatingOverlay maxHeight={320}>
                         {showPermissionSettings ? (
                             <div className="py-2">
@@ -574,6 +574,9 @@ export function HappyComposer(props: {
                         modelMode={modelMode}
                         permissionMode={permissionMode}
                         agentFlavor={agentFlavor}
+                        showSettingsButton={showSettingsButton}
+                        onSettingsToggle={handleSettingsToggle}
+                        controlsDisabled={controlsDisabled}
                     />
 
                     <div className="overflow-hidden rounded-[20px] bg-[var(--app-secondary-bg)]">
@@ -607,8 +610,6 @@ export function HappyComposer(props: {
                             showDeleteButton={showDeleteButton}
                             deleteDisabled={sessionActionsDisabled}
                             onDelete={onDelete ?? (() => {})}
-                            showSettingsButton={showSettingsButton}
-                            onSettingsToggle={handleSettingsToggle}
                             showTerminalButton={showTerminalButton}
                             terminalDisabled={controlsDisabled}
                             terminalConfirmActive={terminalConfirmActive}
