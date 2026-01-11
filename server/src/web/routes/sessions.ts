@@ -151,6 +151,19 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
             return c.json({ error: result.message }, 500)
         }
 
+        const permissionMode = sessionResult.session.permissionMode
+        if (permissionMode !== undefined) {
+            if (!isPermissionModeAllowedForFlavor(permissionMode, flavor)) {
+                return c.json({ error: 'Invalid permission mode for session flavor' }, 400)
+            }
+            try {
+                await engine.applySessionConfig(result.sessionId, { permissionMode })
+            } catch (error) {
+                const message = error instanceof Error ? error.message : 'Failed to apply permission mode on restore'
+                return c.json({ error: message }, 500)
+            }
+        }
+
         return c.json({ sessionId: result.sessionId })
     })
 
