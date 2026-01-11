@@ -15,6 +15,7 @@ import type {
     MessageMeta,
     Metadata,
     ServerToClientEvents,
+    ServerShutdownPayload,
     Session,
     SessionModelMode,
     SessionPermissionMode,
@@ -124,6 +125,11 @@ export class ApiSessionClient extends EventEmitter {
 
         this.socket.on('error', (payload) => {
             logger.debug('[API] Socket error:', payload)
+        })
+
+        this.socket.on('server-shutdown', (payload: ServerShutdownPayload) => {
+            logger.debug('[API] Server shutdown requested', payload)
+            this.emit('server-shutdown', payload ?? {})
         })
 
         const handleTerminalEvent = <T extends { sessionId: string }>(

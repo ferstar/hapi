@@ -17,6 +17,7 @@ import {
     type RemoteLauncherDisplayContext,
     type RemoteLauncherExitReason
 } from "@/modules/common/remote/RemoteLauncherBase";
+import type { ServerShutdownPayload } from "@/api/types";
 
 interface PermissionsField {
     date: number;
@@ -31,6 +32,7 @@ class ClaudeRemoteLauncher extends RemoteLauncherBase {
     private abortFuture: Future<void> | null = null;
     private permissionHandler: PermissionHandler | null = null;
     private handleSessionFound: ((sessionId: string) => void) | null = null;
+    private serverShutdownHandler: ((payload: ServerShutdownPayload) => void) | null = null;
 
     constructor(session: Session) {
         super(process.env.DEBUG ? session.logPath : undefined);
@@ -85,6 +87,30 @@ class ClaudeRemoteLauncher extends RemoteLauncherBase {
 
         const session = this.session;
         const messageBuffer = this.messageBuffer;
+        const handleServerShutdown = (payload: ServerShutdownPayload) => {
+            if (this.exitReason) {
+                return;
+            }
+            const reason = payload?.reason ?? 'Server shutting down';
+            const graceMs = typeof payload?.graceMs === 'number' ? payload.graceMs : 0;
+            const note = `[server-shutdown][Claude] ${reason}`;
+            logger.warn(note);
+            messageBuffer.addMessage('Server shutting down; exiting...', 'status');
+            session.client.sendSessionEvent({ type: 'message', message: note });
+            const exit = async () => {
+                await this.requestExit('exit', async () => {
+                    await this.abort();
+                    session.queue.reset();
+                });
+            };
+            if (graceMs > 0) {
+                setTimeout(() => void exit(), graceMs);
+            } else {
+                void exit();
+            }
+        };
+        this.serverShutdownHandler = handleServerShutdown;
+        session.client.on('server-shutdown', handleServerShutdown);
 
         this.setupAbortHandlers(session.client.rpcHandlerManager, {
             onAbort: () => this.handleAbortRequest(),
@@ -436,6 +462,11 @@ class ClaudeRemoteLauncher extends RemoteLauncherBase {
         if (this.handleSessionFound) {
             this.session.removeSessionFoundCallback(this.handleSessionFound);
             this.handleSessionFound = null;
+        }
+
+        if (this.serverShutdownHandler) {
+            this.session.client.off('server-shutdown', this.serverShutdownHandler);
+            this.serverShutdownHandler = null;
         }
 
         if (this.permissionHandler) {

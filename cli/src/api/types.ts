@@ -199,6 +199,12 @@ export const MessageContentSchema = z.union([UserMessageSchema, AgentMessageSche
 
 export type MessageContent = z.infer<typeof MessageContentSchema>
 
+export type ServerShutdownPayload = {
+    reason?: string
+    at?: number
+    graceMs?: number
+}
+
 export type SocketErrorReason = 'namespace-missing' | 'access-denied' | 'not-found'
 
 export interface ServerToClientEvents {
@@ -208,6 +214,7 @@ export interface ServerToClientEvents {
     'terminal:write': (data: TerminalWritePayload) => void
     'terminal:resize': (data: TerminalResizePayload) => void
     'terminal:close': (data: TerminalClosePayload) => void
+    'server-shutdown': (data: ServerShutdownPayload) => void
     error: (data: { message: string; code?: SocketErrorReason; scope?: 'session' | 'machine'; id?: string }) => void
 }
 

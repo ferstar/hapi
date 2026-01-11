@@ -157,6 +157,12 @@ async function main() {
     // Handle shutdown
     const shutdown = async () => {
         console.log('\nShutting down...')
+        try {
+            socketServer.io.of('/cli').emit('server-shutdown', { reason: 'server-shutdown', at: Date.now() })
+        } catch (error) {
+            console.error('[Server] Failed to broadcast shutdown', error)
+        }
+        await new Promise((resolve) => setTimeout(resolve, 100))
         await happyBot?.stop()
         notificationHub?.stop()
         syncEngine?.stop()
