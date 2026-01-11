@@ -198,8 +198,10 @@ export default {
   // Composer buttons
   'composer.settings': '设置',
   'composer.terminal': '终端',
+  'composer.terminalConfirm': '再次确认打开终端',
   'composer.abort': '中止',
   'composer.abortConfirm': '再次确认中止',
+  'composer.filesConfirm': '再次确认打开文件',
   'composer.switchRemote': '切换到远程模式',
   'composer.send': '发送',
 
