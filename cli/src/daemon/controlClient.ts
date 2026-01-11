@@ -4,7 +4,7 @@
  */
 
 import { logger } from '@/ui/logger';
-import { clearDaemonState, readDaemonState } from '@/persistence';
+import { clearDaemonState, readDaemonState, type DaemonLocallyPersistedState } from '@/persistence';
 import { Metadata } from '@/api/types';
 import packageJson from '../../package.json';
 import { existsSync, statSync } from 'node:fs';
@@ -128,27 +128,28 @@ export async function stopDaemonHttp(): Promise<void> {
  * 
  * That seems like an overkill and yet another process to manage - lets not do this :D
  * 
- * TODO: This function should return a state object with
- * clear state - if it is running / or errored out or something else.
- * Not just a boolean.
- * 
- * We can destructure the response on the caller for richer output.
+ * Returns a state object with a clear status for richer caller output.
  * For instance when running `hapi daemon status` we can show more information.
  */
-export async function checkIfDaemonRunningAndCleanupStaleState(): Promise<boolean> {
+export type DaemonStatus =
+  | { status: 'running'; state: DaemonLocallyPersistedState }
+  | { status: 'stale'; state: DaemonLocallyPersistedState }
+  | { status: 'not_running'; state: null };
+
+export async function checkIfDaemonRunningAndCleanupStaleState(): Promise<DaemonStatus> {
   const state = await readDaemonState();
   if (!state) {
-    return false;
+    return { status: 'not_running', state: null };
   }
 
   // Check if the daemon is running
   if (isProcessAlive(state.pid)) {
-    return true;
+    return { status: 'running', state };
   }
 
   logger.debug('[DAEMON RUN] Daemon PID not running, cleaning up state');
   await cleanupDaemonState();
-  return false;
+  return { status: 'stale', state };
 }
 
 /**
@@ -160,17 +161,13 @@ export async function checkIfDaemonRunningAndCleanupStaleState(): Promise<boolea
  */
 export async function isDaemonRunningCurrentlyInstalledHappyVersion(): Promise<boolean> {
   logger.debug('[DAEMON CONTROL] Checking if daemon is running same version');
-  const runningDaemon = await checkIfDaemonRunningAndCleanupStaleState();
-  if (!runningDaemon) {
+  const daemonStatus = await checkIfDaemonRunningAndCleanupStaleState();
+  if (daemonStatus.status !== 'running') {
     logger.debug('[DAEMON CONTROL] No daemon running, returning false');
     return false;
   }
 
-  const state = await readDaemonState();
-  if (!state) {
-    logger.debug('[DAEMON CONTROL] No daemon state found, returning false');
-    return false;
-  }
+  const state = daemonStatus.state;
   
   try {
     const currentCliMtimeMs = getInstalledCliMtimeMs();

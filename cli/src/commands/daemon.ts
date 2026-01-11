@@ -60,7 +60,8 @@ export const daemonCommand: CommandDefinition = {
 
             let started = false
             for (let i = 0; i < 50; i++) {
-                if (await checkIfDaemonRunningAndCleanupStaleState()) {
+                const status = await checkIfDaemonRunningAndCleanupStaleState()
+                if (status.status === 'running') {
                     started = true
                     break
                 }

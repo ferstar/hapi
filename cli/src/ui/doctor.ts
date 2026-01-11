@@ -10,7 +10,6 @@ import { configuration } from '@/configuration'
 import { readSettings } from '@/persistence'
 import { checkIfDaemonRunningAndCleanupStaleState } from '@/daemon/controlClient'
 import { findRunawayHappyProcesses, findAllHappyProcesses } from '@/daemon/doctor'
-import { readDaemonState } from '@/persistence'
 import { existsSync, readdirSync, statSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -152,10 +151,10 @@ export async function runDoctorCommand(filter?: 'all' | 'daemon'): Promise<void>
     // Daemon status - shown for both 'all' and 'daemon' filters
     console.log(chalk.bold('\n🤖 Daemon Status'));
     try {
-        const isRunning = await checkIfDaemonRunningAndCleanupStaleState();
-        const state = await readDaemonState();
+        const daemonStatus = await checkIfDaemonRunningAndCleanupStaleState();
+        const state = daemonStatus.state;
 
-        if (isRunning && state) {
+        if (daemonStatus.status === 'running' && state) {
             console.log(chalk.green('✓ Daemon is running'));
             console.log(`  PID: ${state.pid}`);
             console.log(`  Started: ${new Date(state.startTime).toLocaleString()}`);
@@ -163,8 +162,9 @@ export async function runDoctorCommand(filter?: 'all' | 'daemon'): Promise<void>
             if (state.httpPort) {
                 console.log(`  HTTP Port: ${state.httpPort}`);
             }
-        } else if (state && !isRunning) {
+        } else if (daemonStatus.status === 'stale' && state) {
             console.log(chalk.yellow('⚠️  Daemon state exists but process not running (stale)'));
+            console.log(chalk.gray('  State file cleaned up; showing last known state.'));
         } else {
             console.log(chalk.red('❌ Daemon is not running'));
         }
