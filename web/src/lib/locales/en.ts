@@ -78,6 +78,10 @@ export default {
   'dialog.delete.description': 'Are you sure you want to delete "{name}"? This action cannot be undone.',
   'dialog.delete.confirm': 'Delete',
   'dialog.delete.confirming': 'Deleting…',
+  'dialog.newSession.cancel.title': 'Cancel session setup?',
+  'dialog.newSession.cancel.description': 'Your session has not been created. Are you sure you want to leave?',
+  'dialog.newSession.cancel.confirm': 'Leave',
+  'dialog.newSession.cancel.confirming': 'Leaving…',
   'dialog.error.default': 'Operation failed. Please try again.',
 
   // Common buttons
@@ -187,6 +191,7 @@ export default {
   'composer.settings': 'Settings',
   'composer.terminal': 'Terminal',
   'composer.abort': 'Abort',
+  'composer.abortConfirm': 'Confirm abort',
   'composer.switchRemote': 'Switch to remote mode',
   'composer.send': 'Send',
 

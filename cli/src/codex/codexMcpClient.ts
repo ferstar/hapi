@@ -211,7 +211,7 @@ export class CodexMcpClient {
         this.permissionHandler = handler;
     }
 
-    async connect(): Promise<void> {
+    async connect(timeoutMs: number = 60_000): Promise<void> {
         if (this.connected) return;
 
         const mcpCommand = getCodexMcpCommand();
@@ -230,10 +230,29 @@ export class CodexMcpClient {
         // Register request handlers for Codex permission methods
         this.registerPermissionHandlers();
 
-        await this.client.connect(this.transport);
-        this.connected = true;
-
-        logger.debug('[CodexMCP] Connected to Codex');
+        let timeoutId: NodeJS.Timeout | null = null;
+        try {
+            const timeoutPromise = new Promise<never>((_, reject) => {
+                timeoutId = setTimeout(() => {
+                    reject(new Error('Codex MCP connect timeout'));
+                }, timeoutMs);
+            });
+            await Promise.race([this.client.connect(this.transport), timeoutPromise]);
+            this.connected = true;
+            logger.debug('[CodexMCP] Connected to Codex');
+        } catch (error) {
+            logger.debug('[CodexMCP] Connect failed', error);
+            try {
+                await this.transport?.close?.();
+            } catch {}
+            this.transport = null;
+            this.connected = false;
+            throw error;
+        } finally {
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+            }
+        }
     }
 
     private registerPermissionHandlers(): void {
@@ -284,15 +303,26 @@ export class CodexMcpClient {
         if (!this.connected) await this.connect();
 
         logger.debug('[CodexMCP] Starting Codex session:', config);
+        if (options?.signal?.aborted) {
+            logger.debug('[CodexMCP] startSession called with aborted signal');
+        }
 
-        const response = await this.client.callTool({
-            name: 'codex',
-            arguments: config as any
-        }, undefined, {
-            signal: options?.signal,
-            timeout: DEFAULT_TIMEOUT,
-            // maxTotalTimeout: 10000000000 
-        });
+        let response: unknown;
+        try {
+            response = await this.client.callTool({
+                name: 'codex',
+                arguments: config as any
+            }, undefined, {
+                signal: options?.signal,
+                timeout: DEFAULT_TIMEOUT,
+                // maxTotalTimeout: 10000000000
+            });
+        } catch (error) {
+            if (error instanceof Error && error.name === 'AbortError') {
+                logger.debug('[CodexMCP] startSession aborted');
+            }
+            throw error;
+        }
 
         logger.debug('[CodexMCP] startSession response:', response);
 
@@ -317,14 +347,25 @@ export class CodexMcpClient {
 
         const args = { sessionId: this.sessionId, conversationId: this.conversationId, prompt };
         logger.debug('[CodexMCP] Continuing Codex session:', args);
+        if (options?.signal?.aborted) {
+            logger.debug('[CodexMCP] continueSession called with aborted signal');
+        }
 
-        const response = await this.client.callTool({
-            name: 'codex-reply',
-            arguments: args
-        }, undefined, {
-            signal: options?.signal,
-            timeout: DEFAULT_TIMEOUT
-        });
+        let response: unknown;
+        try {
+            response = await this.client.callTool({
+                name: 'codex-reply',
+                arguments: args
+            }, undefined, {
+                signal: options?.signal,
+                timeout: DEFAULT_TIMEOUT
+            });
+        } catch (error) {
+            if (error instanceof Error && error.name === 'AbortError') {
+                logger.debug('[CodexMCP] continueSession aborted');
+            }
+            throw error;
+        }
 
         logger.debug('[CodexMCP] continueSession response:', response);
         this.extractIdentifiers(response);

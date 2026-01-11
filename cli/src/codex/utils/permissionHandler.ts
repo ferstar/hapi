@@ -98,10 +98,10 @@ export class CodexPermissionHandler extends BasePermissionHandler<PermissionResp
     /**
      * Reset state for new sessions
      */
-    reset(): void {
+    reset(reason?: string): void {
         this.cancelPendingRequests({
-            completedReason: 'Session reset',
-            rejectMessage: 'Session reset'
+            completedReason: reason ?? 'Session reset',
+            rejectMessage: reason ?? 'Session reset'
         });
 
         logger.debug('[Codex] Permission handler reset');

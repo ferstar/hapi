@@ -7,6 +7,8 @@ import { useSessions } from '@/hooks/queries/useSessions'
 import { useActiveSuggestions, type Suggestion } from '@/hooks/useActiveSuggestions'
 import { useDirectorySuggestions } from '@/hooks/useDirectorySuggestions'
 import { useRecentPaths } from '@/hooks/useRecentPaths'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { useTranslation } from '@/lib/use-translation'
 import type { AgentType, SessionType } from './types'
 import { ActionButtons } from './ActionButtons'
 import { AgentSelector } from './AgentSelector'
@@ -23,11 +25,13 @@ export function NewSession(props: {
     onCancel: () => void
 }) {
     const { haptic } = usePlatform()
+    const { t } = useTranslation()
     const { spawnSession, isPending, error: spawnError } = useSpawnSession(props.api)
     const { sessions } = useSessions(props.api)
     const isFormDisabled = Boolean(isPending || props.isLoading)
     const { getRecentPaths, addRecentPath, getLastUsedMachineId, setLastUsedMachineId } = useRecentPaths()
 
+    const [cancelOpen, setCancelOpen] = useState(false)
     const [machineId, setMachineId] = useState<string | null>(null)
     const [directory, setDirectory] = useState('')
     const [suppressSuggestions, setSuppressSuggestions] = useState(false)
@@ -267,8 +271,22 @@ export function NewSession(props: {
                 isPending={isPending}
                 canCreate={canCreate}
                 isDisabled={isFormDisabled}
-                onCancel={props.onCancel}
+                onCancel={() => setCancelOpen(true)}
                 onCreate={handleCreate}
+            />
+
+            <ConfirmDialog
+                isOpen={cancelOpen}
+                onClose={() => setCancelOpen(false)}
+                title={t('dialog.newSession.cancel.title')}
+                description={t('dialog.newSession.cancel.description')}
+                confirmLabel={t('dialog.newSession.cancel.confirm')}
+                confirmingLabel={t('dialog.newSession.cancel.confirming')}
+                onConfirm={async () => {
+                    props.onCancel()
+                }}
+                isPending={isPending}
+                destructive
             />
         </div>
     )

@@ -80,6 +80,10 @@ export default {
   'dialog.delete.description': '确定要删除 "{name}" 吗？此操作无法撤销。',
   'dialog.delete.confirm': '删除',
   'dialog.delete.confirming': '删除中…',
+  'dialog.newSession.cancel.title': '取消创建会话？',
+  'dialog.newSession.cancel.description': '会话尚未创建，确定要离开吗？',
+  'dialog.newSession.cancel.confirm': '离开',
+  'dialog.newSession.cancel.confirming': '离开中…',
   'dialog.error.default': '操作失败，请重试。',
 
   // Common buttons
@@ -189,6 +193,7 @@ export default {
   'composer.settings': '设置',
   'composer.terminal': '终端',
   'composer.abort': '中止',
+  'composer.abortConfirm': '再次确认中止',
   'composer.switchRemote': '切换到远程模式',
   'composer.send': '发送',
 

@@ -1,11 +1,6 @@
-import { useId, useMemo, useRef, useState } from 'react'
+import { useMemo } from 'react'
 import type { Session } from '@/types/api'
-import type { ApiClient } from '@/api/client'
 import { isTelegramApp } from '@/hooks/useTelegram'
-import { useSessionActions } from '@/hooks/mutations/useSessionActions'
-import { SessionActionMenu } from '@/components/SessionActionMenu'
-import { RenameSessionDialog } from '@/components/RenameSessionDialog'
-import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useTranslation } from '@/lib/use-translation'
 
 function getSessionTitle(session: Session): string {
@@ -22,72 +17,14 @@ function getSessionTitle(session: Session): string {
     return session.id.slice(0, 8)
 }
 
-function FilesIcon(props: { className?: string }) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={props.className}
-        >
-            <path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
-            <path d="M14 2v6h6" />
-        </svg>
-    )
-}
-
-function MoreVerticalIcon(props: { className?: string }) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="currentColor"
-            className={props.className}
-        >
-            <circle cx="12" cy="5" r="2" />
-            <circle cx="12" cy="12" r="2" />
-            <circle cx="12" cy="19" r="2" />
-        </svg>
-    )
-}
-
 export function SessionHeader(props: {
     session: Session
     onBack: () => void
-    onViewFiles?: () => void
-    api: ApiClient | null
-    onSessionDeleted?: () => void
 }) {
     const { t } = useTranslation()
-    const { session, api, onSessionDeleted } = props
+    const { session } = props
     const title = useMemo(() => getSessionTitle(session), [session])
     const worktreeBranch = session.metadata?.worktree?.branch
-
-    const [menuOpen, setMenuOpen] = useState(false)
-    const menuId = useId()
-    const menuAnchorRef = useRef<HTMLButtonElement | null>(null)
-    const [renameOpen, setRenameOpen] = useState(false)
-    const [archiveOpen, setArchiveOpen] = useState(false)
-    const [deleteOpen, setDeleteOpen] = useState(false)
-
-    const { archiveSession, renameSession, deleteSession, isPending } = useSessionActions(
-        api,
-        session.id,
-        session.metadata?.flavor ?? null
-    )
-
-    const handleDelete = async () => {
-        await deleteSession()
-        onSessionDeleted?.()
-    }
 
     // In Telegram, don't render header (Telegram provides its own)
     if (isTelegramApp()) {
@@ -137,76 +74,8 @@ export function SessionHeader(props: {
                             ) : null}
                         </div>
                     </div>
-
-                    {props.onViewFiles ? (
-                        <button
-                            type="button"
-                            onClick={props.onViewFiles}
-                            className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
-                            title={t('session.title')}
-                        >
-                            <FilesIcon />
-                        </button>
-                    ) : null}
-
-                    <button
-                        type="button"
-                        onClick={() => setMenuOpen((open) => !open)}
-                        ref={menuAnchorRef}
-                        aria-haspopup="menu"
-                        aria-expanded={menuOpen}
-                        aria-controls={menuOpen ? menuId : undefined}
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
-                        title={t('session.more')}
-                    >
-                        <MoreVerticalIcon />
-                    </button>
                 </div>
             </div>
-
-            <SessionActionMenu
-                isOpen={menuOpen}
-                onClose={() => setMenuOpen(false)}
-                sessionActive={session.active}
-                onRename={() => setRenameOpen(true)}
-                onArchive={() => setArchiveOpen(true)}
-                onDelete={() => setDeleteOpen(true)}
-                anchorRef={menuAnchorRef}
-                align="end"
-                menuId={menuId}
-            />
-
-            <RenameSessionDialog
-                isOpen={renameOpen}
-                onClose={() => setRenameOpen(false)}
-                currentName={title}
-                onRename={renameSession}
-                isPending={isPending}
-            />
-
-            <ConfirmDialog
-                isOpen={archiveOpen}
-                onClose={() => setArchiveOpen(false)}
-                title={t('dialog.archive.title')}
-                description={t('dialog.archive.description', { name: title })}
-                confirmLabel={t('dialog.archive.confirm')}
-                confirmingLabel={t('dialog.archive.confirming')}
-                onConfirm={archiveSession}
-                isPending={isPending}
-                destructive
-            />
-
-            <ConfirmDialog
-                isOpen={deleteOpen}
-                onClose={() => setDeleteOpen(false)}
-                title={t('dialog.delete.title')}
-                description={t('dialog.delete.description', { name: title })}
-                confirmLabel={t('dialog.delete.confirm')}
-                confirmingLabel={t('dialog.delete.confirming')}
-                onConfirm={handleDelete}
-                isPending={isPending}
-                destructive
-            />
         </>
     )
 }

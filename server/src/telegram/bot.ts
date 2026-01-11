@@ -233,9 +233,7 @@ export class HappyBot implements NotificationChannel {
             '',
             `Agent: ${agentName}`,
             `Title: ${sessionName}`,
-            directory ? `Directory: ${directory}` : null,
-            '',
-            `Open: ${url}`
+            directory ? `Directory: ${directory}` : null
         ].filter((line): line is string => Boolean(line))
         const message = lines.join('\n')
 
