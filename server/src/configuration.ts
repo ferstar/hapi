@@ -50,6 +50,30 @@ class Configuration {
     /** Telegram notifications enabled */
     public readonly telegramNotification: boolean
 
+    /** Telegram suppress window (ms) after visible activity */
+    public readonly telegramNotificationVisibleWindowMs: number
+
+    /** Telegram retry base delay (ms) */
+    public readonly telegramNotificationRetryBaseDelayMs: number
+
+    /** Telegram retry max attempts */
+    public readonly telegramNotificationRetryMaxAttempts: number
+
+    /** Web push suppression window (ms) after visible activity */
+    public readonly pushNotificationVisibleWindowMs: number
+
+    /** Web push retry base delay (ms) */
+    public readonly pushNotificationRetryBaseDelayMs: number
+
+    /** Web push retry max attempts */
+    public readonly pushNotificationRetryMaxAttempts: number
+
+    /** SSE heartbeat interval (ms) */
+    public readonly sseHeartbeatMs: number
+
+    /** Bun server idle timeout (ms) */
+    public readonly webIdleTimeoutMs: number
+
     /** CLI auth token (shared secret) */
     public cliApiToken: string
 
