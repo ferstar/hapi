@@ -271,6 +271,11 @@ class ClaudeRemoteLauncher extends RemoteLauncherBase {
                 message: string;
                 mode: EnhancedMode;
             } | null = null;
+            let idleAbortStreak = 0;
+            const computeBackoffMs = (streak: number): number => {
+                const exp = Math.pow(2, Math.max(0, streak - 1));
+                return Math.min(2000, Math.round(50 * exp));
+            };
 
             let previousSessionId: string | null = null;
             while (!this.exitReason) {
@@ -316,6 +321,7 @@ class ClaudeRemoteLauncher extends RemoteLauncherBase {
                             let msg = await session.queue.waitForMessagesAndGetAsString(controller.signal);
 
                             if (msg) {
+                                idleAbortStreak = 0;
                                 if ((modeHash && msg.hash !== modeHash) || msg.isolate) {
                                     logger.debug('[remote]: mode has changed, pending message');
                                     pending = msg;
@@ -328,6 +334,23 @@ class ClaudeRemoteLauncher extends RemoteLauncherBase {
                                     message: msg.message,
                                     mode: msg.mode
                                 };
+                            }
+
+                            if (controller.signal.aborted && !this.exitReason) {
+                                idleAbortStreak += 1;
+                                const backoffMs = computeBackoffMs(idleAbortStreak);
+                                logger.debug(
+                                    `[remote]: Wait aborted while idle; backing off (streak=${idleAbortStreak}, backoff=${backoffMs}ms)`
+                                );
+                                await new Promise<void>((resolve) => setTimeout(resolve, backoffMs));
+                                if (idleAbortStreak >= 20) {
+                                    logger.warn('[remote]: Excessive idle aborts; resetting queue to avoid hot loop');
+                                    controller.abort();
+                                    session.queue.reset();
+                                    idleAbortStreak = 0;
+                                }
+                            } else {
+                                idleAbortStreak = 0;
                             }
 
                             return null;

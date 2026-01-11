@@ -621,6 +621,11 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
         let nextExperimentalResume: string | null = null;
         let first = true;
         let idleAbortStreak = 0;
+        const computeBackoffMs = (streak: number): number => {
+            // Exponential backoff capped at 2s
+            const exp = Math.pow(2, Math.max(0, streak - 1));
+            return Math.min(2000, Math.round(50 * exp));
+        };
 
         while (!this.shouldExit) {
             logActiveHandles('loop-top');
@@ -632,7 +637,7 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                 if (!batch) {
                     if (waitSignal.aborted && !this.shouldExit) {
                         idleAbortStreak += 1;
-                        const backoffMs = Math.min(2000, 50 * idleAbortStreak);
+                        const backoffMs = computeBackoffMs(idleAbortStreak);
                         logger.debug(
                             `[codex]: Wait aborted while idle; ignoring and continuing (streak=${idleAbortStreak}, backoff=${backoffMs}ms)`
                         );
