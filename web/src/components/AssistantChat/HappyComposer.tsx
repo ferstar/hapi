@@ -44,6 +44,11 @@ export function HappyComposer(props: {
     onModelModeChange?: (mode: ModelMode) => void
     onSwitchToRemote?: () => void
     onTerminal?: () => void
+    onRename?: () => void
+    onArchive?: () => void
+    onDelete?: () => void
+    onViewFiles?: () => void
+    sessionActionsDisabled?: boolean
     autocompletePrefixes?: string[]
     autocompleteSuggestions?: (query: string) => Promise<Suggestion[]>
 }) {
@@ -62,6 +67,11 @@ export function HappyComposer(props: {
         onModelModeChange,
         onSwitchToRemote,
         onTerminal,
+        onRename,
+        onArchive,
+        onDelete,
+        onViewFiles,
+        sessionActionsDisabled = false,
         autocompletePrefixes = ['@', '/'],
         autocompleteSuggestions = defaultSuggestionHandler
     } = props
@@ -87,10 +97,12 @@ export function HappyComposer(props: {
     const [showSettings, setShowSettings] = useState(false)
     const [isAborting, setIsAborting] = useState(false)
     const [isSwitching, setIsSwitching] = useState(false)
+    const [abortConfirmActive, setAbortConfirmActive] = useState(false)
     const [showContinueHint, setShowContinueHint] = useState(false)
 
     const textareaRef = useRef<HTMLTextAreaElement>(null)
     const prevControlledByUser = useRef(controlledByUser)
+    const abortConfirmTimer = useRef<number | null>(null)
 
     useEffect(() => {
         setInputState((prev) => {
@@ -186,6 +198,15 @@ export function HappyComposer(props: {
     }, [isAborting, threadIsRunning])
 
     useEffect(() => {
+        if (threadIsRunning) return
+        if (abortConfirmTimer.current !== null) {
+            window.clearTimeout(abortConfirmTimer.current)
+            abortConfirmTimer.current = null
+        }
+        setAbortConfirmActive(false)
+    }, [threadIsRunning])
+
+    useEffect(() => {
         if (!isSwitching) return
         if (controlledByUser) return
         setIsSwitching(false)
@@ -193,10 +214,27 @@ export function HappyComposer(props: {
 
     const handleAbort = useCallback(() => {
         if (abortDisabled) return
+        if (!abortConfirmActive) {
+            haptic('light')
+            setAbortConfirmActive(true)
+            if (abortConfirmTimer.current !== null) {
+                window.clearTimeout(abortConfirmTimer.current)
+            }
+            abortConfirmTimer.current = window.setTimeout(() => {
+                abortConfirmTimer.current = null
+                setAbortConfirmActive(false)
+            }, 2000)
+            return
+        }
+        if (abortConfirmTimer.current !== null) {
+            window.clearTimeout(abortConfirmTimer.current)
+            abortConfirmTimer.current = null
+        }
+        setAbortConfirmActive(false)
         haptic('error')
         setIsAborting(true)
         api.thread().cancelRun()
-    }, [abortDisabled, api, haptic])
+    }, [abortDisabled, abortConfirmActive, api, haptic])
 
     const handleSwitch = useCallback(async () => {
         if (switchDisabled || !onSwitchToRemote) return
@@ -336,7 +374,10 @@ export function HappyComposer(props: {
     const showPermissionSettings = Boolean(onPermissionModeChange && permissionModeOptions.length > 0)
     const showModelSettings = Boolean(onModelModeChange && agentFlavor !== 'codex' && agentFlavor !== 'gemini')
     const showSettingsButton = Boolean(showPermissionSettings || showModelSettings)
-    const showAbortButton = true
+    const showRenameButton = Boolean(onRename)
+    const showArchiveButton = Boolean(onArchive)
+    const showDeleteButton = Boolean(onDelete)
+    const showFilesButton = Boolean(onViewFiles)
 
     const overlays = useMemo(() => {
         if (showSettings && (showPermissionSettings || showModelSettings)) {
@@ -472,34 +513,47 @@ export function HappyComposer(props: {
                     />
 
                     <div className="overflow-hidden rounded-[20px] bg-[var(--app-secondary-bg)]">
-                        <div className="flex items-center px-4 py-3">
+                        <div className="flex items-start px-4 py-3">
                             <ComposerPrimitive.Input
                                 ref={textareaRef}
                                 autoFocus={!controlsDisabled && !isTouch}
                                 placeholder={showContinueHint ? t('misc.typeMessage') : t('misc.typeAMessage')}
                                 disabled={controlsDisabled}
-                                maxRows={5}
+                                maxRows={10}
                                 submitOnEnter
                                 cancelOnEscape={false}
                                 onChange={handleChange}
                                 onSelect={handleSelect}
                                 onKeyDown={handleKeyDown}
                                 onSubmit={handleSubmit}
-                                className="flex-1 resize-none bg-transparent text-sm leading-snug text-[var(--app-fg)] placeholder-[var(--app-hint)] focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                                className="flex-1 min-h-[96px] resize-y overflow-y-auto bg-transparent text-sm leading-snug text-[var(--app-fg)] placeholder-[var(--app-hint)] focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
                             />
                         </div>
 
                         <ComposerButtons
                             canSend={canSend}
+                            threadIsRunning={threadIsRunning}
                             controlsDisabled={controlsDisabled}
+                            showRenameButton={showRenameButton}
+                            renameDisabled={sessionActionsDisabled}
+                            onRename={onRename ?? (() => {})}
+                            showArchiveButton={showArchiveButton}
+                            archiveDisabled={sessionActionsDisabled}
+                            onArchive={onArchive ?? (() => {})}
+                            showDeleteButton={showDeleteButton}
+                            deleteDisabled={sessionActionsDisabled}
+                            onDelete={onDelete ?? (() => {})}
                             showSettingsButton={showSettingsButton}
                             onSettingsToggle={handleSettingsToggle}
                             showTerminalButton={showTerminalButton}
                             terminalDisabled={controlsDisabled}
                             onTerminal={onTerminal ?? (() => {})}
-                            showAbortButton={showAbortButton}
+                            showFilesButton={showFilesButton}
+                            filesDisabled={false}
+                            onFiles={onViewFiles ?? (() => {})}
                             abortDisabled={abortDisabled}
                             isAborting={isAborting}
+                            abortConfirmActive={abortConfirmActive}
                             onAbort={handleAbort}
                             showSwitchButton={showSwitchButton}
                             switchDisabled={switchDisabled}

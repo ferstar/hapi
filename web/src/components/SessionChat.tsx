@@ -14,6 +14,9 @@ import { useHappyRuntime } from '@/lib/assistant-runtime'
 import { SessionHeader } from '@/components/SessionHeader'
 import { usePlatform } from '@/hooks/usePlatform'
 import { useSessionActions } from '@/hooks/mutations/useSessionActions'
+import { RenameSessionDialog } from '@/components/RenameSessionDialog'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { useTranslation } from '@/lib/use-translation'
 
 export function SessionChat(props: {
     api: ApiClient
@@ -35,6 +38,7 @@ export function SessionChat(props: {
     onRetryMessage?: (localId: string) => void
     autocompleteSuggestions?: (query: string) => Promise<Suggestion[]>
 }) {
+    const { t } = useTranslation()
     const { haptic } = usePlatform()
     const navigate = useNavigate()
     const controlsDisabled = !props.session.active
@@ -42,11 +46,23 @@ export function SessionChat(props: {
     const blocksByIdRef = useRef<Map<string, ChatBlock>>(new Map())
     const [forceScrollToken, setForceScrollToken] = useState(0)
     const agentFlavor = props.session.metadata?.flavor ?? null
-    const { abortSession, switchSession, setPermissionMode, setModelMode } = useSessionActions(
+    const {
+        abortSession,
+        switchSession,
+        setPermissionMode,
+        setModelMode,
+        renameSession,
+        archiveSession,
+        deleteSession,
+        isPending
+    } = useSessionActions(
         props.api,
         props.session.id,
         agentFlavor
     )
+    const [renameOpen, setRenameOpen] = useState(false)
+    const [archiveOpen, setArchiveOpen] = useState(false)
+    const [deleteOpen, setDeleteOpen] = useState(false)
 
     useEffect(() => {
         normalizedCacheRef.current.clear()
@@ -144,6 +160,21 @@ export function SessionChat(props: {
         setForceScrollToken((token) => token + 1)
     }, [props.onSend])
 
+    const sessionTitle = useMemo(() => {
+        const metadata = props.session.metadata
+        if (metadata?.name) {
+            return metadata.name
+        }
+        if (metadata?.summary?.text) {
+            return metadata.summary.text
+        }
+        if (metadata?.path) {
+            const parts = metadata.path.split('/').filter(Boolean)
+            return parts.length > 0 ? parts[parts.length - 1] : props.session.id.slice(0, 8)
+        }
+        return props.session.id.slice(0, 8)
+    }, [props.session.id, props.session.metadata])
+
     const runtime = useHappyRuntime({
         session: props.session,
         blocks: reconciled.blocks,
@@ -157,9 +188,6 @@ export function SessionChat(props: {
             <SessionHeader
                 session={props.session}
                 onBack={props.onBack}
-                onViewFiles={props.session.metadata?.path ? handleViewFiles : undefined}
-                api={props.api}
-                onSessionDeleted={props.onBack}
             />
 
             {controlsDisabled ? (
@@ -208,10 +236,50 @@ export function SessionChat(props: {
                         onModelModeChange={handleModelModeChange}
                         onSwitchToRemote={handleSwitchToRemote}
                         onTerminal={props.session.active ? handleViewTerminal : undefined}
+                        onRename={() => setRenameOpen(true)}
+                        onArchive={() => setArchiveOpen(true)}
+                        onDelete={() => setDeleteOpen(true)}
+                        onViewFiles={props.session.metadata?.path ? handleViewFiles : undefined}
+                        sessionActionsDisabled={isPending}
                         autocompleteSuggestions={props.autocompleteSuggestions}
                     />
                 </div>
             </AssistantRuntimeProvider>
+
+            <RenameSessionDialog
+                isOpen={renameOpen}
+                onClose={() => setRenameOpen(false)}
+                currentName={sessionTitle}
+                onRename={renameSession}
+                isPending={isPending}
+            />
+
+            <ConfirmDialog
+                isOpen={archiveOpen}
+                onClose={() => setArchiveOpen(false)}
+                title={t('dialog.archive.title')}
+                description={t('dialog.archive.description', { name: sessionTitle })}
+                confirmLabel={t('dialog.archive.confirm')}
+                confirmingLabel={t('dialog.archive.confirming')}
+                onConfirm={archiveSession}
+                isPending={isPending}
+                destructive
+            />
+
+            <ConfirmDialog
+                isOpen={deleteOpen}
+                onClose={() => setDeleteOpen(false)}
+                title={t('dialog.delete.title')}
+                description={t('dialog.delete.description', { name: sessionTitle })}
+                confirmLabel={t('dialog.delete.confirm')}
+                confirmingLabel={t('dialog.delete.confirming')}
+                onConfirm={async () => {
+                    await deleteSession()
+                    props.onBack()
+                }}
+                isPending={isPending}
+                destructive
+            />
         </div>
     )
 }
