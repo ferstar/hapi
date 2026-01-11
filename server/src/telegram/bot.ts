@@ -5,6 +5,7 @@
  * All interactive features are handled by the Telegram Mini App.
  */
 
+import { basename } from 'node:path'
 import { Bot, Context, InlineKeyboard } from 'grammy'
 import { SyncEngine, Session } from '../sync/syncEngine'
 import { handleCallback, CallbackContext } from './callbacks'
@@ -226,7 +227,7 @@ export class HappyBot implements NotificationChannel {
 
         const agentName = getAgentName(session)
         const sessionName = getSessionName(session)
-        const directory = session.metadata?.path ?? null
+        const directory = session.metadata?.path ? basename(session.metadata.path) : null
         const url = buildMiniAppDeepLink(this.miniAppUrl, `session_${session.id}`)
         const lines = [
             'Session ready.',
