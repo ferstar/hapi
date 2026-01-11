@@ -5,6 +5,7 @@
  * All interactive features are handled by the Telegram Mini App.
  */
 
+import { basename } from 'node:path'
 import { Bot, Context, InlineKeyboard } from 'grammy'
 import { SyncEngine, Session } from '../sync/syncEngine'
 import { handleCallback, CallbackContext } from './callbacks'
