@@ -621,10 +621,13 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
         let nextExperimentalResume: string | null = null;
         let first = true;
         let idleAbortStreak = 0;
-        const computeBackoffMs = (streak: number): number => {
-            // Exponential backoff capped at 2s
+        const computeBackoffMs = (streak: number): { delay: number; jitter: number } => {
+            // Exponential backoff capped at 2s with jitter to avoid retry storms
             const exp = Math.pow(2, Math.max(0, streak - 1));
-            return Math.min(2000, Math.round(50 * exp));
+            const base = Math.min(2000, Math.round(50 * exp));
+            const jitter = Math.round(Math.random() * (base / 2));
+            const delay = Math.min(2000, base + jitter);
+            return { delay, jitter };
         };
 
         while (!this.shouldExit) {
@@ -637,15 +640,20 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                 if (!batch) {
                     if (waitSignal.aborted && !this.shouldExit) {
                         idleAbortStreak += 1;
-                        const backoffMs = computeBackoffMs(idleAbortStreak);
+                        const { delay, jitter } = computeBackoffMs(idleAbortStreak);
                         logger.debug(
-                            `[codex]: Wait aborted while idle; ignoring and continuing (streak=${idleAbortStreak}, backoff=${backoffMs}ms)`
+                            `[codex]: Wait aborted while idle; ignoring and continuing (streak=${idleAbortStreak}, backoff=${delay}ms, jitter=${jitter}ms)`
                         );
-                        await new Promise<void>((resolve) => setTimeout(resolve, backoffMs));
+                        await new Promise<void>((resolve) => setTimeout(resolve, delay));
                         if (idleAbortStreak >= 20) {
-                            logger.warn('[Codex] Excessive idle aborts; resetting queue to avoid hot loop');
-                            await this.handleAbort({ resetQueue: true });
-                            idleAbortStreak = 0;
+                            const fatalMessage = '[fatal-idle][Codex] Excessive idle aborts; exiting for restart';
+                            logger.error(fatalMessage);
+                            messageBuffer.addMessage('Too many idle aborts; exiting for restart...', 'status');
+                            session.sendSessionEvent({ type: 'message', message: fatalMessage });
+                            await this.requestExit('exit', async () => {
+                                await this.handleAbort({ resetQueue: true });
+                            });
+                            break;
                         }
                         continue;
                     }

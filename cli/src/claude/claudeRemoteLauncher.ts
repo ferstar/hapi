@@ -272,9 +272,12 @@ class ClaudeRemoteLauncher extends RemoteLauncherBase {
                 mode: EnhancedMode;
             } | null = null;
             let idleAbortStreak = 0;
-            const computeBackoffMs = (streak: number): number => {
+            const computeBackoffMs = (streak: number): { delay: number; jitter: number } => {
                 const exp = Math.pow(2, Math.max(0, streak - 1));
-                return Math.min(2000, Math.round(50 * exp));
+                const base = Math.min(2000, Math.round(50 * exp));
+                const jitter = Math.round(Math.random() * (base / 2));
+                const delay = Math.min(2000, base + jitter);
+                return { delay, jitter };
             };
 
             let previousSessionId: string | null = null;
@@ -338,16 +341,21 @@ class ClaudeRemoteLauncher extends RemoteLauncherBase {
 
                             if (controller.signal.aborted && !this.exitReason) {
                                 idleAbortStreak += 1;
-                                const backoffMs = computeBackoffMs(idleAbortStreak);
+                                const { delay, jitter } = computeBackoffMs(idleAbortStreak);
                                 logger.debug(
-                                    `[remote]: Wait aborted while idle; backing off (streak=${idleAbortStreak}, backoff=${backoffMs}ms)`
+                                    `[remote]: Wait aborted while idle; backing off (streak=${idleAbortStreak}, backoff=${delay}ms, jitter=${jitter}ms)`
                                 );
-                                await new Promise<void>((resolve) => setTimeout(resolve, backoffMs));
+                                await new Promise<void>((resolve) => setTimeout(resolve, delay));
                                 if (idleAbortStreak >= 20) {
-                                    logger.warn('[remote]: Excessive idle aborts; resetting queue to avoid hot loop');
-                                    controller.abort();
-                                    session.queue.reset();
-                                    idleAbortStreak = 0;
+                                    const fatalMessage = '[fatal-idle][remote] Excessive idle aborts; exiting for restart';
+                                    logger.error(fatalMessage);
+                                    messageBuffer.addMessage('Too many idle aborts; exiting for restart...', 'status');
+                                    session.client.sendSessionEvent({ type: 'message', message: fatalMessage });
+                                    await this.requestExit('exit', async () => {
+                                        controller.abort();
+                                        session.queue.reset();
+                                    });
+                                    break;
                                 }
                             } else {
                                 idleAbortStreak = 0;
