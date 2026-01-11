@@ -69,6 +69,7 @@ export type MessagesResponse = {
         hasMore: boolean
     }
 }
+export type RestoreResponse = { sessionId: string }
 
 export type MachinesResponse = { machines: Machine[] }
 export type MachinePathsExistsResponse = { exists: Record<string, boolean> }

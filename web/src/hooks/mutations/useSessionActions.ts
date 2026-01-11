@@ -12,7 +12,7 @@ export function useSessionActions(
 ): {
     abortSession: () => Promise<void>
     archiveSession: () => Promise<void>
-    restoreSession: () => Promise<void>
+    restoreSession: () => Promise<string>
     switchSession: () => Promise<void>
     setPermissionMode: (mode: PermissionMode) => Promise<void>
     setModelMode: (mode: ModelMode) => Promise<void>
@@ -53,7 +53,7 @@ export function useSessionActions(
             if (!api || !sessionId) {
                 throw new Error('Session unavailable')
             }
-            await api.restoreSession(sessionId)
+            return await api.restoreSession(sessionId)
         },
         onSuccess: () => void invalidateSession(),
     })

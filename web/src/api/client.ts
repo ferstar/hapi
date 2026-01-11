@@ -15,7 +15,8 @@ import type {
     SpawnResponse,
     VisibilityPayload,
     SessionResponse,
-    SessionsResponse
+    SessionsResponse,
+    RestoreResponse
 } from '@/types/api'
 
 type ApiClientOptions = {
@@ -256,11 +257,15 @@ export class ApiClient {
         })
     }
 
-    async restoreSession(sessionId: string): Promise<void> {
-        await this.request(`/api/sessions/${encodeURIComponent(sessionId)}/restore`, {
+    async restoreSession(sessionId: string): Promise<string> {
+        const response = await this.request<RestoreResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/restore`, {
             method: 'POST',
             body: JSON.stringify({})
         })
+        if (!response?.sessionId) {
+            throw new Error('Restore succeeded but no session ID was returned')
+        }
+        return response.sessionId
     }
 
     async switchSession(sessionId: string): Promise<void> {

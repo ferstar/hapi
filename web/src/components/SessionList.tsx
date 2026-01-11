@@ -316,7 +316,10 @@ function SessionItem(props: {
                     description={t('dialog.restore.description', { name: sessionName })}
                     confirmLabel={t('dialog.restore.confirm')}
                     confirmingLabel={t('dialog.restore.confirming')}
-                    onConfirm={restoreSession}
+                    onConfirm={async () => {
+                        const restoredId = await restoreSession()
+                        onSelect(restoredId)
+                    }}
                     isPending={isPending}
                 />
             ) : null}
