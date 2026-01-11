@@ -308,8 +308,12 @@ export function SessionChat(props: {
                     confirmLabel={t('dialog.restore.confirm')}
                     confirmingLabel={t('dialog.restore.confirming')}
                     onConfirm={async () => {
-                        await restoreSession()
-                        props.onRefresh()
+                        const restoredId = await restoreSession()
+                        navigate({
+                            to: '/sessions/$sessionId',
+                            params: { sessionId: restoredId },
+                            replace: true
+                        })
                     }}
                     isPending={isPending}
                 />
