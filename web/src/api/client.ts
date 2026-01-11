@@ -256,6 +256,13 @@ export class ApiClient {
         })
     }
 
+    async restoreSession(sessionId: string): Promise<void> {
+        await this.request(`/api/sessions/${encodeURIComponent(sessionId)}/restore`, {
+            method: 'POST',
+            body: JSON.stringify({})
+        })
+    }
+
     async switchSession(sessionId: string): Promise<void> {
         await this.request(`/api/sessions/${encodeURIComponent(sessionId)}/switch`, {
             method: 'POST',

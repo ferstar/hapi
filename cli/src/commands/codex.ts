@@ -19,6 +19,7 @@ export const codexCommand: CommandDefinition = {
                 permissionMode?: CodexPermissionMode
                 forceNewSession?: boolean
                 sessionTag?: string
+                resumeSessionId?: string
             } = {}
             const unknownArgs: string[] = []
 
@@ -26,8 +27,18 @@ export const codexCommand: CommandDefinition = {
                 const arg = commandArgs[i]
                 if (arg === '--started-by') {
                     options.startedBy = commandArgs[++i] as 'daemon' | 'terminal'
+                } else if (arg === '--resume') {
+                    options.resumeSessionId = z.string().min(1).parse(commandArgs[++i])
                 } else if (arg === '--session-tag') {
                     options.sessionTag = z.string().min(1).parse(commandArgs[++i])
+                } else if (arg === 'resume') {
+                    const resumeId = commandArgs[i + 1]
+                    if (resumeId && !resumeId.startsWith('-')) {
+                        options.resumeSessionId = z.string().min(1).parse(resumeId)
+                        i += 1
+                    } else {
+                        unknownArgs.push(arg)
+                    }
                 } else if (arg === '--new-session') {
                     options.forceNewSession = true
                 } else if (arg === '--yolo' || arg === '--dangerously-bypass-approvals-and-sandbox') {

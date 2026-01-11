@@ -173,7 +173,7 @@ export async function startDaemon(): Promise<void> {
       }
     };
 
-    // Spawn a new session (sessionId reserved for future --resume functionality)
+    // Spawn a new session (sessionId is used to resume when provided)
     const spawnSession = async (options: SpawnSessionOptions): Promise<SpawnSessionResult> => {
       logger.debugLargeJson('[DAEMON RUN] Spawning session', options);
 
@@ -328,17 +328,28 @@ export async function startDaemon(): Promise<void> {
           : agent === 'gemini'
             ? 'gemini'
             : 'claude';
-        const args = [
-          agentCommand,
-          '--hapi-starting-mode', 'remote',
-          '--started-by', 'daemon'
-        ];
+        const args = [agentCommand];
+
+        if (sessionId) {
+          if (agentCommand === 'gemini') {
+            return {
+              type: 'error',
+              errorMessage: 'Restore is not supported for Gemini sessions'
+            };
+          }
+
+          if (agentCommand === 'codex') {
+            args.push('resume', sessionId);
+          } else {
+            args.push('--resume', sessionId);
+          }
+        }
+
+        args.push('--hapi-starting-mode', 'remote', '--started-by', 'daemon');
         if (yolo) {
           args.push('--yolo');
         }
 
-        // TODO: In future, sessionId could be used with --resume to continue existing sessions
-        // For now, we ignore it - each spawn creates a new session
         const MAX_TAIL_CHARS = 4000;
         let stderrTail = '';
         const appendTail = (current: string, chunk: Buffer | string): string => {

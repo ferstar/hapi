@@ -61,6 +61,7 @@ export default {
   // Session actions
   'session.action.rename': '重命名',
   'session.action.archive': '归档',
+  'session.action.restore': '恢复',
   'session.action.delete': '删除',
   'session.action.copy': '复制',
 
@@ -75,6 +76,11 @@ export default {
   'dialog.archive.description': '确定要归档 "{name}" 吗？这将断开活动会话。',
   'dialog.archive.confirm': '归档',
   'dialog.archive.confirming': '归档中…',
+
+  'dialog.restore.title': '恢复会话',
+  'dialog.restore.description': '恢复 "{name}" 并重新连接该会话？',
+  'dialog.restore.confirm': '恢复',
+  'dialog.restore.confirming': '恢复中…',
 
   'dialog.delete.title': '删除会话',
   'dialog.delete.description': '确定要删除 "{name}" 吗？此操作无法撤销。',
