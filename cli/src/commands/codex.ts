@@ -1,4 +1,5 @@
 import chalk from 'chalk'
+import { z } from 'zod'
 import { authAndSetupMachineIfNeeded } from '@/ui/auth'
 import { initializeToken } from '@/ui/tokenInit'
 import { maybeAutoStartServer } from '@/utils/autoStartServer'
