@@ -97,6 +97,22 @@ On first run, HAPI:
 | `HAPI_HOME` | `~/.hapi` | Config directory path |
 | `DB_PATH` | `~/.hapi/hapi.db` | Database file path |
 | `CORS_ORIGINS` | - | Allowed CORS origins |
+
+Codex stall watchdog (CLI):
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `HAPI_CODEX_CONNECT_TIMEOUT_MS` | `60000` | MCP connect timeout in ms |
+| `HAPI_CODEX_STALL_MIN_MS` | `120000` | Minimum stall timeout in ms |
+| `HAPI_CODEX_STALL_THINKING_MS` | `240000` | Stall timeout during thinking in ms |
+| `HAPI_CODEX_STALL_TOOL_MS` | `300000` | Stall timeout during tools in ms |
+| `HAPI_CODEX_STALL_TOOL_ACTIVE_MS` | `600000` | Stall timeout during active tools in ms |
+| `HAPI_CODEX_STALL_PATCH_MS` | `300000` | Stall timeout during patch application in ms |
+| `HAPI_CODEX_STALL_PATCH_ACTIVE_MS` | `600000` | Stall timeout during active patch application in ms |
+| `HAPI_CODEX_STALL_COMPLETE_MS` | `180000` | Stall timeout after completion in ms |
+| `HAPI_CODEX_STALL_CHECK_MS` | `5000` | Stall watchdog interval in ms |
+| `HAPI_CODEX_STALL_RESTART_LIMIT` | `3` | Stall restart limit before cooldown |
+| `HAPI_CODEX_STALL_RESTART_COOLDOWN_MS` | `900000` | Stall restart cooldown in ms |
 </details>
 
 ## CLI setup

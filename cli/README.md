@@ -75,6 +75,17 @@ See `src/configuration.ts` for all options.
 - `HAPI_EXPERIMENTAL` - Enable experimental features (true/1/yes).
 - `HAPI_CLAUDE_PATH` - Path to a specific `claude` executable.
 - `HAPI_HTTP_MCP_URL` - Default MCP target for `hapi mcp`.
+- `HAPI_CODEX_CONNECT_TIMEOUT_MS` - MCP connect timeout in ms (default: 60000).
+- `HAPI_CODEX_STALL_MIN_MS` - Minimum stall timeout in ms (default: 120000).
+- `HAPI_CODEX_STALL_THINKING_MS` - Stall timeout during thinking in ms (default: 240000).
+- `HAPI_CODEX_STALL_TOOL_MS` - Stall timeout during tools in ms (default: 300000).
+- `HAPI_CODEX_STALL_TOOL_ACTIVE_MS` - Stall timeout during active tools in ms (default: 600000).
+- `HAPI_CODEX_STALL_PATCH_MS` - Stall timeout during patch application in ms (default: 300000).
+- `HAPI_CODEX_STALL_PATCH_ACTIVE_MS` - Stall timeout during active patch application in ms (default: 600000).
+- `HAPI_CODEX_STALL_COMPLETE_MS` - Stall timeout after completion in ms (default: 180000).
+- `HAPI_CODEX_STALL_CHECK_MS` - Stall watchdog interval in ms (default: 5000).
+- `HAPI_CODEX_STALL_RESTART_LIMIT` - Stall restart limit before cooldown (default: 3).
+- `HAPI_CODEX_STALL_RESTART_COOLDOWN_MS` - Stall restart cooldown in ms (default: 900000).
 
 ### Daemon
 
