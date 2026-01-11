@@ -620,6 +620,7 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
         let pending: { message: string; mode: EnhancedMode; isolate: boolean; hash: string } | null = null;
         let nextExperimentalResume: string | null = null;
         let first = true;
+        let idleAbortStreak = 0;
 
         while (!this.shouldExit) {
             logActiveHandles('loop-top');
@@ -630,12 +631,24 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                 const batch = await session.queue.waitForMessagesAndGetAsString(waitSignal);
                 if (!batch) {
                     if (waitSignal.aborted && !this.shouldExit) {
-                        logger.debug('[codex]: Wait aborted while idle; ignoring and continuing');
+                        idleAbortStreak += 1;
+                        const backoffMs = Math.min(2000, 50 * idleAbortStreak);
+                        logger.debug(
+                            `[codex]: Wait aborted while idle; ignoring and continuing (streak=${idleAbortStreak}, backoff=${backoffMs}ms)`
+                        );
+                        await new Promise<void>((resolve) => setTimeout(resolve, backoffMs));
+                        if (idleAbortStreak >= 20) {
+                            logger.warn('[Codex] Excessive idle aborts; resetting queue to avoid hot loop');
+                            await this.handleAbort({ resetQueue: true });
+                            idleAbortStreak = 0;
+                        }
                         continue;
                     }
+                    idleAbortStreak = 0;
                     logger.debug(`[codex]: batch=${!!batch}, shouldExit=${this.shouldExit}`);
                     break;
                 }
+                idleAbortStreak = 0;
                 message = batch;
             }
 
