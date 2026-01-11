@@ -1,15 +1,19 @@
-import os from 'node:os'
+import { execFileSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
+import { realpathSync } from 'node:fs'
+import os from 'node:os'
 import { resolve } from 'node:path'
 
 import { ApiClient } from '@/api/api'
 import type { ApiSessionClient } from '@/api/apiSession'
 import type { AgentState, MachineMetadata, Metadata, Session } from '@/api/types'
 import { notifyDaemonSessionStarted } from '@/daemon/controlClient'
+import type { WorktreeInfo } from '@/daemon/worktree'
 import { readSettings } from '@/persistence'
 import { configuration } from '@/configuration'
 import { logger } from '@/ui/logger'
 import { runtimePath } from '@/projectPath'
+import { hashObject } from '@/utils/deterministicJson'
 import { readWorktreeEnv } from '@/utils/worktreeEnv'
 import packageJson from '../../package.json'
 
@@ -20,6 +24,7 @@ export type SessionBootstrapOptions = {
     startedBy?: SessionStartedBy
     workingDirectory?: string
     tag?: string
+    forceNewSession?: boolean
     agentState?: AgentState | null
 }
 
@@ -49,10 +54,11 @@ export function buildSessionMetadata(options: {
     startedBy: SessionStartedBy
     workingDirectory: string
     machineId: string
+    worktreeInfo?: WorktreeInfo | null
     now?: number
 }): Metadata {
     const happyLibDir = runtimePath()
-    const worktreeInfo = readWorktreeEnv()
+    const worktreeInfo = options.worktreeInfo ?? readWorktreeEnv()
     const now = options.now ?? Date.now()
 
     return {
@@ -73,6 +79,54 @@ export function buildSessionMetadata(options: {
         flavor: options.flavor,
         worktree: worktreeInfo ?? undefined
     }
+}
+
+function resolveProjectRoot(workingDirectory: string): string {
+    const normalized = normalizePath(workingDirectory)
+    try {
+        const root = execFileSync('git', ['rev-parse', '--show-toplevel'], {
+            cwd: normalized,
+            encoding: 'utf8'
+        }).trim()
+        if (!root) {
+            return normalized
+        }
+        return normalizePath(root)
+    } catch {
+        return normalized
+    }
+}
+
+function normalizePath(targetPath: string): string {
+    try {
+        return realpathSync(targetPath)
+    } catch {
+        return resolve(targetPath)
+    }
+}
+
+function buildDefaultSessionTag(options: {
+    flavor: string
+    machineId: string
+    projectRoot: string
+    worktreeInfo?: WorktreeInfo | null
+}): string {
+    const payload = {
+        v: 1,
+        flavor: options.flavor,
+        machineId: options.machineId,
+        projectRoot: options.projectRoot,
+        worktree: options.worktreeInfo
+            ? {
+                basePath: options.worktreeInfo.basePath,
+                worktreePath: options.worktreeInfo.worktreePath,
+                branch: options.worktreeInfo.branch,
+                name: options.worktreeInfo.name
+            }
+            : null
+    }
+    const digest = hashObject(payload, undefined, 'base64url')
+    return `hapi:${options.flavor}:${digest}`
 }
 
 async function getMachineIdOrExit(): Promise<string> {
@@ -103,12 +157,23 @@ async function reportSessionStarted(sessionId: string, metadata: Metadata): Prom
 export async function bootstrapSession(options: SessionBootstrapOptions): Promise<SessionBootstrapResult> {
     const workingDirectory = options.workingDirectory ?? process.cwd()
     const startedBy = options.startedBy ?? 'terminal'
-    const sessionTag = options.tag ?? randomUUID()
     const agentState = options.agentState === undefined ? {} : options.agentState
 
     const api = await ApiClient.create()
 
     const machineId = await getMachineIdOrExit()
+    const worktreeInfo = readWorktreeEnv()
+    const projectRoot = worktreeInfo?.worktreePath ?? resolveProjectRoot(workingDirectory)
+    const envTag = process.env.HAPI_SESSION_TAG?.trim()
+    const sessionTag = options.tag
+        ?? (options.forceNewSession ? randomUUID() : undefined)
+        ?? envTag
+        ?? buildDefaultSessionTag({
+            flavor: options.flavor,
+            machineId,
+            projectRoot,
+            worktreeInfo
+        })
     await api.getOrCreateMachine({
         machineId,
         metadata: buildMachineMetadata()
@@ -118,7 +183,8 @@ export async function bootstrapSession(options: SessionBootstrapOptions): Promis
         flavor: options.flavor,
         startedBy,
         workingDirectory,
-        machineId
+        machineId,
+        worktreeInfo
     })
 
     const sessionInfo = await api.getOrCreateSession({

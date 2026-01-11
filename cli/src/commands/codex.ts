@@ -1,4 +1,5 @@
 import chalk from 'chalk'
+import { z } from 'zod'
 import { authAndSetupMachineIfNeeded } from '@/ui/auth'
 import { initializeToken } from '@/ui/tokenInit'
 import { maybeAutoStartServer } from '@/utils/autoStartServer'
@@ -17,6 +18,8 @@ export const codexCommand: CommandDefinition = {
                 codexArgs?: string[]
                 permissionMode?: CodexPermissionMode
                 resumeSessionId?: string
+                forceNewSession?: boolean
+                sessionTag?: string
             } = {}
             const unknownArgs: string[] = []
 
@@ -33,6 +36,10 @@ export const codexCommand: CommandDefinition = {
                 }
                 if (arg === '--started-by') {
                     options.startedBy = commandArgs[++i] as 'daemon' | 'terminal'
+                } else if (arg === '--session-tag') {
+                    options.sessionTag = z.string().min(1).parse(commandArgs[++i])
+                } else if (arg === '--new-session') {
+                    options.forceNewSession = true
                 } else if (arg === '--yolo' || arg === '--dangerously-bypass-approvals-and-sandbox') {
                     options.permissionMode = 'yolo'
                     unknownArgs.push(arg)

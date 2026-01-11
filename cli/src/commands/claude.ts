@@ -35,6 +35,10 @@ export const claudeCommand: CommandDefinition = {
                 unknownArgs.push(arg)
             } else if (arg === '--hapi-starting-mode') {
                 options.startingMode = z.enum(['local', 'remote']).parse(args[++i])
+            } else if (arg === '--session-tag') {
+                options.sessionTag = z.string().min(1).parse(args[++i])
+            } else if (arg === '--new-session') {
+                options.forceNewSession = true
             } else if (arg === '--yolo') {
                 options.permissionMode = 'bypassPermissions'
                 unknownArgs.push('--dangerously-skip-permissions')
@@ -77,6 +81,7 @@ ${chalk.bold('Examples:')}
   hapi auth login         Configure CLI_API_TOKEN interactively
   hapi --yolo             Start with bypassing permissions
                             hapi sugar for --dangerously-skip-permissions
+  hapi --new-session      Start a fresh server session
   hapi auth status        Show direct-connect status
   hapi doctor             Run diagnostics
 

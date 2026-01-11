@@ -18,6 +18,8 @@ export async function runCodex(opts: {
     codexArgs?: string[];
     permissionMode?: PermissionMode;
     resumeSessionId?: string;
+    forceNewSession?: boolean;
+    sessionTag?: string;
 }): Promise<void> {
     const workingDirectory = process.cwd();
     const startedBy = opts.startedBy ?? 'terminal';
@@ -31,7 +33,9 @@ export async function runCodex(opts: {
         flavor: 'codex',
         startedBy,
         workingDirectory,
-        agentState: state
+        agentState: state,
+        forceNewSession: opts.forceNewSession,
+        tag: opts.sessionTag
     });
 
     const startingMode: 'local' | 'remote' = startedBy === 'daemon' ? 'remote' : 'local';
