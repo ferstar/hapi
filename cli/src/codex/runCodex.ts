@@ -119,6 +119,7 @@ export async function runCodex(opts: {
             session,
             codexArgs: opts.codexArgs,
             codexCliOverrides,
+            resumeSessionId: opts.resumeSessionId,
             startedBy,
             permissionMode: currentPermissionMode,
             resumeSessionId: opts.resumeSessionId,
