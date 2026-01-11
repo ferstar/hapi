@@ -98,11 +98,15 @@ export function HappyComposer(props: {
     const [isAborting, setIsAborting] = useState(false)
     const [isSwitching, setIsSwitching] = useState(false)
     const [abortConfirmActive, setAbortConfirmActive] = useState(false)
+    const [terminalConfirmActive, setTerminalConfirmActive] = useState(false)
+    const [filesConfirmActive, setFilesConfirmActive] = useState(false)
     const [showContinueHint, setShowContinueHint] = useState(false)
 
     const textareaRef = useRef<HTMLTextAreaElement>(null)
     const prevControlledByUser = useRef(controlledByUser)
     const abortConfirmTimer = useRef<number | null>(null)
+    const terminalConfirmTimer = useRef<number | null>(null)
+    const filesConfirmTimer = useRef<number | null>(null)
 
     useEffect(() => {
         setInputState((prev) => {
@@ -207,6 +211,20 @@ export function HappyComposer(props: {
     }, [threadIsRunning])
 
     useEffect(() => {
+        if (!controlsDisabled) return
+        if (terminalConfirmTimer.current !== null) {
+            window.clearTimeout(terminalConfirmTimer.current)
+            terminalConfirmTimer.current = null
+        }
+        if (filesConfirmTimer.current !== null) {
+            window.clearTimeout(filesConfirmTimer.current)
+            filesConfirmTimer.current = null
+        }
+        setTerminalConfirmActive(false)
+        setFilesConfirmActive(false)
+    }, [controlsDisabled])
+
+    useEffect(() => {
         if (!isSwitching) return
         if (controlledByUser) return
         setIsSwitching(false)
@@ -235,6 +253,52 @@ export function HappyComposer(props: {
         setIsAborting(true)
         api.thread().cancelRun()
     }, [abortDisabled, abortConfirmActive, api, haptic])
+
+    const handleTerminal = useCallback(() => {
+        if (controlsDisabled || !onTerminal) return
+        if (!terminalConfirmActive) {
+            haptic('light')
+            setTerminalConfirmActive(true)
+            if (terminalConfirmTimer.current !== null) {
+                window.clearTimeout(terminalConfirmTimer.current)
+            }
+            terminalConfirmTimer.current = window.setTimeout(() => {
+                terminalConfirmTimer.current = null
+                setTerminalConfirmActive(false)
+            }, 2000)
+            return
+        }
+        if (terminalConfirmTimer.current !== null) {
+            window.clearTimeout(terminalConfirmTimer.current)
+            terminalConfirmTimer.current = null
+        }
+        setTerminalConfirmActive(false)
+        haptic('success')
+        onTerminal()
+    }, [controlsDisabled, onTerminal, terminalConfirmActive, haptic])
+
+    const handleViewFiles = useCallback(() => {
+        if (controlsDisabled || !onViewFiles) return
+        if (!filesConfirmActive) {
+            haptic('light')
+            setFilesConfirmActive(true)
+            if (filesConfirmTimer.current !== null) {
+                window.clearTimeout(filesConfirmTimer.current)
+            }
+            filesConfirmTimer.current = window.setTimeout(() => {
+                filesConfirmTimer.current = null
+                setFilesConfirmActive(false)
+            }, 2000)
+            return
+        }
+        if (filesConfirmTimer.current !== null) {
+            window.clearTimeout(filesConfirmTimer.current)
+            filesConfirmTimer.current = null
+        }
+        setFilesConfirmActive(false)
+        haptic('success')
+        onViewFiles()
+    }, [controlsDisabled, onViewFiles, filesConfirmActive, haptic])
 
     const handleSwitch = useCallback(async () => {
         if (switchDisabled || !onSwitchToRemote) return
@@ -547,10 +611,12 @@ export function HappyComposer(props: {
                             onSettingsToggle={handleSettingsToggle}
                             showTerminalButton={showTerminalButton}
                             terminalDisabled={controlsDisabled}
-                            onTerminal={onTerminal ?? (() => {})}
+                            terminalConfirmActive={terminalConfirmActive}
+                            onTerminal={handleTerminal}
                             showFilesButton={showFilesButton}
                             filesDisabled={false}
-                            onFiles={onViewFiles ?? (() => {})}
+                            filesConfirmActive={filesConfirmActive}
+                            onFiles={handleViewFiles}
                             abortDisabled={abortDisabled}
                             isAborting={isAborting}
                             abortConfirmActive={abortConfirmActive}

@@ -195,8 +195,10 @@ export default {
   // Composer buttons
   'composer.settings': 'Settings',
   'composer.terminal': 'Terminal',
+  'composer.terminalConfirm': 'Confirm open terminal',
   'composer.abort': 'Abort',
   'composer.abortConfirm': 'Confirm abort',
+  'composer.filesConfirm': 'Confirm open files',
   'composer.switchRemote': 'Switch to remote mode',
   'composer.send': 'Send',
 
