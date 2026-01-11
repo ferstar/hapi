@@ -26,7 +26,27 @@ import {
 
 type HappyServer = Awaited<ReturnType<typeof buildHapiMcpBridge>>['server'];
 
+function resolveEnvNumber(name: string, fallback: number): number {
+    const raw = process.env[name];
+    if (!raw) {
+        return fallback;
+    }
+    const parsed = Number.parseInt(raw, 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
 class CodexRemoteLauncher extends RemoteLauncherBase {
+    private static readonly STALL_TIMEOUT_MIN_MS = resolveEnvNumber('HAPI_CODEX_STALL_MIN_MS', 120_000);
+    private static readonly STALL_TIMEOUT_THINKING_MS = resolveEnvNumber('HAPI_CODEX_STALL_THINKING_MS', 240_000);
+    private static readonly STALL_TIMEOUT_TOOL_MS = resolveEnvNumber('HAPI_CODEX_STALL_TOOL_MS', 300_000);
+    private static readonly STALL_TIMEOUT_TOOL_ACTIVE_MS = resolveEnvNumber('HAPI_CODEX_STALL_TOOL_ACTIVE_MS', 600_000);
+    private static readonly STALL_TIMEOUT_PATCH_MS = resolveEnvNumber('HAPI_CODEX_STALL_PATCH_MS', 300_000);
+    private static readonly STALL_TIMEOUT_PATCH_ACTIVE_MS = resolveEnvNumber('HAPI_CODEX_STALL_PATCH_ACTIVE_MS', 600_000);
+    private static readonly STALL_TIMEOUT_COMPLETE_MS = resolveEnvNumber('HAPI_CODEX_STALL_COMPLETE_MS', 180_000);
+    private static readonly STALL_CHECK_INTERVAL_MS = resolveEnvNumber('HAPI_CODEX_STALL_CHECK_MS', 5_000);
+    private static readonly STALL_RESTART_LIMIT = resolveEnvNumber('HAPI_CODEX_STALL_RESTART_LIMIT', 3);
+    private static readonly STALL_RESTART_COOLDOWN_MS = resolveEnvNumber('HAPI_CODEX_STALL_RESTART_COOLDOWN_MS', 15 * 60_000);
+    private static readonly CONNECT_TIMEOUT_MS = resolveEnvNumber('HAPI_CODEX_CONNECT_TIMEOUT_MS', 60_000);
     private readonly session: CodexSession;
     private readonly client: CodexMcpClient;
     private permissionHandler: CodexPermissionHandler | null = null;
@@ -35,6 +55,16 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
     private happyServer: HappyServer | null = null;
     private abortController: AbortController = new AbortController();
     private storedSessionIdForResume: string | null = null;
+    private lastEventAt = Date.now();
+    private currentPhase: 'idle' | 'request' | 'thinking' | 'tool' | 'patch' | 'complete' = 'idle';
+    private inFlight = false;
+    private stallCheckTimer: NodeJS.Timeout | null = null;
+    private stallRestartInProgress = false;
+    private stallRestartCount = 0;
+    private stallRestartedAtMs: number | null = null;
+    private ignoreEventsUntilNextRequest = false;
+    private activeToolCalls = 0;
+    private activePatchCalls = 0;
 
     constructor(session: CodexSession) {
         super(process.env.DEBUG ? session.logPath : undefined);
@@ -46,7 +76,7 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
         return React.createElement(CodexDisplay, context);
     }
 
-    private async handleAbort(): Promise<void> {
+    private async handleAbort(options?: { resetQueue?: boolean }): Promise<void> {
         logger.debug('[Codex] Abort requested - stopping current task');
         try {
             if (this.client.hasActiveSession()) {
@@ -55,7 +85,10 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
             }
 
             this.abortController.abort();
-            this.session.queue.reset();
+            logger.debug(`[Codex] Abort signal set (resetQueue=${options?.resetQueue ? 'yes' : 'no'})`);
+            if (options?.resetQueue) {
+                this.session.queue.reset();
+            }
             this.permissionHandler?.reset();
             this.reasoningProcessor?.abort();
             this.diffProcessor?.reset();
@@ -67,24 +100,116 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
         }
     }
 
+    private setPhase(phase: 'idle' | 'request' | 'thinking' | 'tool' | 'patch' | 'complete'): void {
+        this.currentPhase = phase;
+    }
+
+    private markEvent(): void {
+        this.lastEventAt = Date.now();
+        if (this.stallRestartInProgress) {
+            this.stallRestartInProgress = false;
+        }
+    }
+
+    private getPhaseTimeoutMs(): number {
+        switch (this.currentPhase) {
+            case 'tool':
+                return this.activeToolCalls > 0
+                    ? CodexRemoteLauncher.STALL_TIMEOUT_TOOL_ACTIVE_MS
+                    : CodexRemoteLauncher.STALL_TIMEOUT_TOOL_MS;
+            case 'patch':
+                return this.activePatchCalls > 0
+                    ? CodexRemoteLauncher.STALL_TIMEOUT_PATCH_ACTIVE_MS
+                    : CodexRemoteLauncher.STALL_TIMEOUT_PATCH_MS;
+            case 'thinking':
+                return CodexRemoteLauncher.STALL_TIMEOUT_THINKING_MS;
+            case 'complete':
+                return CodexRemoteLauncher.STALL_TIMEOUT_COMPLETE_MS;
+            case 'request':
+            case 'idle':
+            default:
+                return CodexRemoteLauncher.STALL_TIMEOUT_MIN_MS;
+        }
+    }
+
+    private startStallMonitor(): void {
+        if (this.stallCheckTimer) return;
+        this.stallCheckTimer = setInterval(() => {
+            if (!this.inFlight || this.stallRestartInProgress) return;
+            if (
+                this.stallRestartedAtMs &&
+                Date.now() - this.stallRestartedAtMs > CodexRemoteLauncher.STALL_RESTART_COOLDOWN_MS
+            ) {
+                this.stallRestartCount = 0;
+                this.stallRestartedAtMs = null;
+            }
+            const idleMs = Date.now() - this.lastEventAt;
+            if (idleMs < this.getPhaseTimeoutMs()) return;
+            void this.triggerStallRestart(`no events for ${Math.round(idleMs / 1000)}s`);
+        }, CodexRemoteLauncher.STALL_CHECK_INTERVAL_MS);
+    }
+
+    private stopStallMonitor(): void {
+        if (this.stallCheckTimer) {
+            clearInterval(this.stallCheckTimer);
+            this.stallCheckTimer = null;
+        }
+    }
+
+    private async triggerStallRestart(reason: string): Promise<void> {
+        if (this.stallRestartInProgress) return;
+        if (this.stallRestartCount >= CodexRemoteLauncher.STALL_RESTART_LIMIT) {
+            logger.warn('[Codex] Stall detected but restart limit reached; skipping');
+            return;
+        }
+        this.stallRestartInProgress = true;
+        this.stallRestartCount += 1;
+        this.stallRestartedAtMs = Date.now();
+        this.ignoreEventsUntilNextRequest = true;
+        logger.warn(`[Codex] Stall detected (${reason}); restarting MCP client`);
+        this.messageBuffer.addMessage('Codex stalled; restarting...', 'status');
+        this.session.sendSessionEvent({ type: 'message', message: 'Codex stalled; restarting...' });
+
+        try {
+            if (this.client.hasActiveSession()) {
+                this.storedSessionIdForResume = this.client.storeSessionForResume();
+                logger.debug('[Codex] Stored session for resume after stall:', this.storedSessionIdForResume);
+            }
+            this.abortController.abort();
+            this.inFlight = false;
+            await this.client.disconnect();
+        } catch (error) {
+            logger.warn('[Codex] Error while restarting MCP client', error);
+        } finally {
+            this.abortController = new AbortController();
+            this.permissionHandler?.reset('Stalled restart');
+            this.reasoningProcessor?.abort();
+            this.diffProcessor?.reset();
+            this.setPhase('idle');
+            this.activeToolCalls = 0;
+            this.activePatchCalls = 0;
+        }
+    }
+
+
     private async handleExitFromUi(): Promise<void> {
         logger.debug('[codex-remote]: Exiting agent via Ctrl-C');
         this.exitReason = 'exit';
         this.shouldExit = true;
-        await this.handleAbort();
+        await this.handleAbort({ resetQueue: true });
     }
 
     private async handleSwitchFromUi(): Promise<void> {
         logger.debug('[codex-remote]: Switching to local mode via double space');
         this.exitReason = 'switch';
         this.shouldExit = true;
-        await this.handleAbort();
+        await this.handleAbort({ resetQueue: true });
     }
 
     private async handleSwitchRequest(): Promise<void> {
         this.exitReason = 'switch';
         this.shouldExit = true;
-        await this.handleAbort();
+        await this.handleAbort({ resetQueue: true });
     }
 
     public async launch(): Promise<RemoteLauncherExitReason> {
@@ -292,6 +417,11 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
 
         client.setPermissionHandler(permissionHandler);
         client.setHandler((msg) => {
+            if (this.ignoreEventsUntilNextRequest && !this.inFlight) {
+                logger.debug('[Codex] Ignoring event during restart');
+                return;
+            }
+            this.markEvent();
             logger.debug(`[Codex] MCP message: ${JSON.stringify(msg)}`);
 
             const msgType = typeof msg?.type === 'string' ? msg.type : null;
@@ -302,11 +432,16 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
 
             if (msg.type === 'agent_message') {
                 messageBuffer.addMessage(msg.message, 'assistant');
+                this.setPhase('complete');
             } else if (msg.type === 'agent_reasoning_delta') {
+                this.setPhase('thinking');
             } else if (msg.type === 'agent_reasoning') {
                 messageBuffer.addMessage(`[Thinking] ${msg.text.substring(0, 100)}...`, 'system');
+                this.setPhase('thinking');
             } else if (msg.type === 'exec_command_begin') {
                 messageBuffer.addMessage(`Executing: ${msg.command}`, 'tool');
+                this.activeToolCalls += 1;
+                this.setPhase('tool');
             } else if (msg.type === 'exec_command_end') {
                 const output = msg.output || msg.error || 'Command completed';
                 const truncatedOutput = output.substring(0, 200);
@@ -314,14 +449,23 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                     `Result: ${truncatedOutput}${output.length > 200 ? '...' : ''}`,
                     'result'
                 );
+                this.activeToolCalls = Math.max(0, this.activeToolCalls - 1);
+                this.setPhase('thinking');
             } else if (msg.type === 'task_started') {
                 messageBuffer.addMessage('Starting task...', 'status');
+                this.setPhase('thinking');
             } else if (msg.type === 'task_complete') {
                 messageBuffer.addMessage('Task completed', 'status');
                 sendReady();
+                this.setPhase('complete');
+                if (this.stallRestartCount > 0) {
+                    this.stallRestartCount = 0;
+                    this.stallRestartedAtMs = null;
+                }
             } else if (msg.type === 'turn_aborted') {
                 messageBuffer.addMessage('Turn aborted', 'status');
                 sendReady();
+                this.setPhase('complete');
             }
 
             if (msg.type === 'task_started') {
@@ -362,6 +506,7 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                     input: inputs,
                     id: randomUUID()
                 });
+                this.setPhase('tool');
             }
             if (msg.type === 'exec_command_end') {
                 const { call_id, type, ...output } = msg;
@@ -384,6 +529,8 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                 const changeCount = Object.keys(changes).length;
                 const filesMsg = changeCount === 1 ? '1 file' : `${changeCount} files`;
                 messageBuffer.addMessage(`Modifying ${filesMsg}...`, 'tool');
+                this.activePatchCalls += 1;
+                this.setPhase('patch');
 
                 session.sendCodexMessage({
                     type: 'tool-call',
@@ -417,6 +564,8 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                     },
                     id: randomUUID()
                 });
+                this.activePatchCalls = Math.max(0, this.activePatchCalls - 1);
+                this.setPhase('thinking');
             }
             if (msg.type === 'turn_diff') {
                 if (msg.unified_diff) {
@@ -429,9 +578,11 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
         this.happyServer = happyServer;
 
         this.setupAbortHandlers(session.client.rpcHandlerManager, {
-            onAbort: () => this.handleAbort(),
+            onAbort: () => this.handleAbort({ resetQueue: true }),
             onSwitch: () => this.handleSwitchRequest()
         });
+
+        this.startStallMonitor();
 
         function logActiveHandles(tag: string) {
             if (!process.env.DEBUG) return;
@@ -456,7 +607,13 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
             }
         };
 
-        await client.connect();
+        try {
+            await this.client.connect(CodexRemoteLauncher.CONNECT_TIMEOUT_MS);
+        } catch (error) {
+            logger.warn('[Codex] Initial MCP connect failed', error);
+            await this.client.disconnect().catch(() => {});
+            throw error;
+        }
 
         let wasCreated = false;
         let currentModeHash: string | null = null;
@@ -529,6 +686,9 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                             resumeFile = abortResumeFile;
                             logger.debug('[Codex] Using resume file from aborted session:', resumeFile);
                             messageBuffer.addMessage('Resuming from aborted session...', 'status');
+                        } else if (this.stallRestartInProgress) {
+                            messageBuffer.addMessage('Resume file missing; starting fresh.', 'status');
+                            session.sendSessionEvent({ type: 'message', message: 'Resume file missing; starting fresh.' });
                         }
                         this.storedSessionIdForResume = null;
                     } else if (first && session.sessionId) {
@@ -556,11 +716,30 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                         (startConfig.config as any).experimental_resume = resumeFile;
                     }
 
+                    if (this.stallRestartInProgress) {
+                        logger.debug('[Codex] Clearing stall restart flag before new request');
+                        this.stallRestartInProgress = false;
+                    }
+                    this.inFlight = true;
+                    this.ignoreEventsUntilNextRequest = false;
+                    this.setPhase('request');
+                    this.lastEventAt = Date.now();
                     await client.startSession(startConfig, { signal: this.abortController.signal });
                     wasCreated = true;
                     first = false;
                     syncSessionId();
                 } else {
+                    if (this.abortController.signal.aborted) {
+                        logger.debug('[Codex] Continue called while abort signal already set');
+                    }
+                    if (this.stallRestartInProgress) {
+                        logger.debug('[Codex] Clearing stall restart flag before new request');
+                        this.stallRestartInProgress = false;
+                    }
+                    this.inFlight = true;
+                    this.ignoreEventsUntilNextRequest = false;
+                    this.setPhase('request');
+                    this.lastEventAt = Date.now();
                     await client.continueSession(message.message, { signal: this.abortController.signal });
                     syncSessionId();
                 }
@@ -568,12 +747,20 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                 logger.warn('Error in codex session:', error);
                 const isAbortError = error instanceof Error && error.name === 'AbortError';
 
-                if (isAbortError) {
+                if (this.stallRestartInProgress) {
+                    messageBuffer.addMessage('Codex stalled; restarting...', 'status');
+                    session.sendSessionEvent({ type: 'message', message: 'Codex stalled; restarting...' });
+                    wasCreated = false;
+                    currentModeHash = null;
+                    this.setPhase('idle');
+                } else if (isAbortError) {
+                    logger.debug('[Codex] AbortError caught in run loop');
                     messageBuffer.addMessage('Aborted by user', 'status');
                     session.sendSessionEvent({ type: 'message', message: 'Aborted by user' });
                     wasCreated = false;
                     currentModeHash = null;
                     logger.debug('[Codex] Marked session as not created after abort for proper resume');
+                    this.setPhase('idle');
                 } else {
                     messageBuffer.addMessage('Process exited unexpectedly', 'status');
                     session.sendSessionEvent({ type: 'message', message: 'Process exited unexpectedly' });
@@ -583,6 +770,10 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                     }
                 }
             } finally {
+                this.inFlight = false;
+                this.setPhase('idle');
+                this.activeToolCalls = 0;
+                this.activePatchCalls = 0;
                 permissionHandler.reset();
                 reasoningProcessor.abort();
                 diffProcessor.reset();
@@ -600,6 +791,7 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
 
     protected async cleanup(): Promise<void> {
         logger.debug('[codex-remote]: cleanup start');
+        this.stopStallMonitor();
         try {
             await this.client.disconnect();
         } catch (error) {
