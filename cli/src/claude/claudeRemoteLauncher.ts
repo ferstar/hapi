@@ -348,14 +348,14 @@ class ClaudeRemoteLauncher extends RemoteLauncherBase {
                                 await new Promise<void>((resolve) => setTimeout(resolve, delay));
                                 if (idleAbortStreak >= 20) {
                                     const fatalMessage = '[fatal-idle][remote] Excessive idle aborts; exiting for restart';
-                                    logger.error(fatalMessage);
+                                    logger.warn(fatalMessage);
                                     messageBuffer.addMessage('Too many idle aborts; exiting for restart...', 'status');
                                     session.client.sendSessionEvent({ type: 'message', message: fatalMessage });
                                     await this.requestExit('exit', async () => {
                                         controller.abort();
                                         session.queue.reset();
                                     });
-                                    break;
+                                    return null;
                                 }
                             } else {
                                 idleAbortStreak = 0;
