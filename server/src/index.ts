@@ -90,7 +90,7 @@ async function main() {
     const pushService = new PushService(vapidKeys, vapidSubject, store)
 
     visibilityTracker = new VisibilityTracker()
-    sseManager = new SSEManager(30_000, visibilityTracker)
+    sseManager = new SSEManager(config.sseHeartbeatMs, visibilityTracker)
 
     const socketServer = createSocketServer({
         store,
@@ -104,8 +104,14 @@ async function main() {
 
     syncEngine = new SyncEngine(store, socketServer.io, socketServer.rpcRegistry, sseManager)
 
+    const disableWebPush = config.telegramEnabled && config.telegramNotification
     const notificationChannels: NotificationChannel[] = [
-        new PushNotificationChannel(pushService, sseManager, visibilityTracker, config.miniAppUrl)
+        new PushNotificationChannel(pushService, sseManager, visibilityTracker, config.miniAppUrl, {
+            disableWebPush,
+            recentVisibleWindowMs: config.pushNotificationVisibleWindowMs,
+            retryBaseDelayMs: config.pushNotificationRetryBaseDelayMs,
+            retryMaxAttempts: config.pushNotificationRetryMaxAttempts
+        })
     ]
 
     // Initialize Telegram bot (optional)
@@ -114,7 +120,13 @@ async function main() {
             syncEngine,
             botToken: config.telegramBotToken,
             miniAppUrl: config.miniAppUrl,
-            store
+            store,
+            terminalRegistry: socketServer.terminalRegistry,
+            sseManager,
+            visibilityTracker,
+            retryBaseDelayMs: config.telegramNotificationRetryBaseDelayMs,
+            retryMaxAttempts: config.telegramNotificationRetryMaxAttempts,
+            recentVisibleWindowMs: config.telegramNotificationVisibleWindowMs
         })
         // Only add to notification channels if notifications are enabled
         if (config.telegramNotification) {

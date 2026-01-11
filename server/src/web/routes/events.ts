@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { streamSSE } from 'hono/streaming'
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
+import { isPcUserAgent } from '../../sse/sseManager'
 import type { SSEManager } from '../../sse/sseManager'
 import type { SyncEngine } from '../../sync/syncEngine'
 import type { VisibilityState } from '../../visibility/visibilityTracker'
@@ -44,6 +45,9 @@ export function createEventsRoutes(
             return c.json({ error: 'Not connected' }, 503)
         }
 
+        c.header('Cache-Control', 'no-cache, no-transform')
+        c.header('X-Accel-Buffering', 'no')
+
         const query = c.req.query()
         const all = parseBoolean(query.all)
         const sessionId = parseOptionalId(query.sessionId)
@@ -51,6 +55,9 @@ export function createEventsRoutes(
         const subscriptionId = randomUUID()
         const visibility = parseVisibility(query.visibility)
         const namespace = c.get('namespace')
+        const userAgent = c.req.header('user-agent') ?? ''
+        const pc = isPcUserAgent(userAgent)
+        console.log(`[SSE] Subscribe: namespace=${namespace} visibility=${visibility} pc=${pc} ua="${userAgent}"`)
 
         if (sessionId || machineId) {
             const engine = getSyncEngine()
@@ -85,6 +92,7 @@ export function createEventsRoutes(
                 sessionId,
                 machineId,
                 visibility,
+                userAgent,
                 send: (event) => stream.writeSSE({ data: JSON.stringify(event) }),
                 sendHeartbeat: async () => {
                     await stream.write(': heartbeat\n\n')
