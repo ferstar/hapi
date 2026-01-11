@@ -20,6 +20,7 @@ export async function runCodex(opts: {
     resumeSessionId?: string;
     forceNewSession?: boolean;
     sessionTag?: string;
+    resumeSessionId?: string;
 }): Promise<void> {
     const workingDirectory = process.cwd();
     const startedBy = opts.startedBy ?? 'terminal';
@@ -119,6 +120,7 @@ export async function runCodex(opts: {
             session,
             codexArgs: opts.codexArgs,
             codexCliOverrides,
+            resumeSessionId: opts.resumeSessionId,
             startedBy,
             permissionMode: currentPermissionMode,
             resumeSessionId: opts.resumeSessionId,

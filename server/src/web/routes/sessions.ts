@@ -4,7 +4,7 @@ import { Hono } from 'hono'
 import { z } from 'zod'
 import type { SyncEngine, Session } from '../../sync/syncEngine'
 import type { WebAppEnv } from '../middleware/auth'
-import { requireSessionFromParam, requireSyncEngine } from './guards'
+import { requireMachine, requireSessionFromParam, requireSyncEngine } from './guards'
 
 const permissionModeSchema = z.object({
     mode: PermissionModeSchema
@@ -92,6 +92,66 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
 
         await engine.archiveSession(sessionResult.sessionId)
         return c.json({ ok: true })
+    })
+
+    app.post('/sessions/:id/restore', async (c) => {
+        const engine = requireSyncEngine(c, getSyncEngine)
+        if (engine instanceof Response) {
+            return engine
+        }
+
+        const sessionResult = requireSessionFromParam(c, engine)
+        if (sessionResult instanceof Response) {
+            return sessionResult
+        }
+
+        if (sessionResult.session.active) {
+            return c.json({ error: 'Session is already active' }, 409)
+        }
+
+        const metadata = sessionResult.session.metadata
+        if (!metadata) {
+            return c.json({ error: 'Session missing metadata' }, 400)
+        }
+
+        if (!metadata.machineId) {
+            return c.json({ error: 'Session missing machineId' }, 400)
+        }
+
+        if (!metadata.path) {
+            return c.json({ error: 'Session missing path' }, 400)
+        }
+
+        const flavor = metadata.flavor?.trim() || 'claude'
+        if (flavor !== 'claude' && flavor !== 'codex') {
+            return c.json({ error: 'Session flavor does not support restore' }, 400)
+        }
+
+        const resumeSessionId = flavor === 'claude' ? metadata.claudeSessionId : metadata.codexSessionId
+        if (!resumeSessionId) {
+            return c.json({ error: 'Session missing resume ID' }, 400)
+        }
+
+        const machine = requireMachine(c, engine, metadata.machineId)
+        if (machine instanceof Response) {
+            return machine
+        }
+
+        const result = await engine.spawnSession(
+            machine.id,
+            metadata.path,
+            flavor,
+            undefined,
+            'simple',
+            undefined,
+            resumeSessionId
+        )
+
+        if (result.type === 'error') {
+            return c.json({ error: result.message }, 500)
+        }
+
+        return c.json({ sessionId: result.sessionId })
     })
 
     app.post('/sessions/:id/switch', async (c) => {

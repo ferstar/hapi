@@ -174,9 +174,10 @@ function SessionItem(props: {
     const [menuAnchorPoint, setMenuAnchorPoint] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
     const [renameOpen, setRenameOpen] = useState(false)
     const [archiveOpen, setArchiveOpen] = useState(false)
+    const [restoreOpen, setRestoreOpen] = useState(false)
     const [deleteOpen, setDeleteOpen] = useState(false)
 
-    const { archiveSession, renameSession, deleteSession, isPending } = useSessionActions(
+    const { archiveSession, restoreSession, renameSession, deleteSession, isPending } = useSessionActions(
         api,
         s.id,
         s.metadata?.flavor ?? null
@@ -200,6 +201,17 @@ function SessionItem(props: {
     const statusDotClass = s.active
         ? (s.thinking ? 'bg-[#007AFF]' : 'bg-[var(--app-badge-success-text)]')
         : 'bg-[var(--app-hint)]'
+    const restoreFlavor = s.metadata?.flavor?.trim() || 'claude'
+    const restoreId = restoreFlavor === 'codex'
+        ? s.metadata?.codexSessionId
+        : restoreFlavor === 'claude'
+            ? s.metadata?.claudeSessionId
+            : undefined
+    const canRestore = !s.active && Boolean(
+        s.metadata?.machineId
+        && s.metadata?.path
+        && restoreId
+    )
     return (
         <>
             <button
@@ -269,6 +281,7 @@ function SessionItem(props: {
                 onClose={() => setMenuOpen(false)}
                 sessionActive={s.active}
                 onRename={() => setRenameOpen(true)}
+                onRestore={canRestore ? () => setRestoreOpen(true) : undefined}
                 onArchive={() => setArchiveOpen(true)}
                 onDelete={() => setDeleteOpen(true)}
                 anchorPoint={menuAnchorPoint}
@@ -293,6 +306,19 @@ function SessionItem(props: {
                 isPending={isPending}
                 destructive
             />
+
+            {canRestore ? (
+                <ConfirmDialog
+                    isOpen={restoreOpen}
+                    onClose={() => setRestoreOpen(false)}
+                    title={t('dialog.restore.title')}
+                    description={t('dialog.restore.description', { name: sessionName })}
+                    confirmLabel={t('dialog.restore.confirm')}
+                    confirmingLabel={t('dialog.restore.confirming')}
+                    onConfirm={restoreSession}
+                    isPending={isPending}
+                />
+            ) : null}
 
             <ConfirmDialog
                 isOpen={deleteOpen}

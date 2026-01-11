@@ -61,6 +61,7 @@ export default {
   // Session actions
   'session.action.rename': 'Rename',
   'session.action.archive': 'Archive',
+  'session.action.restore': 'Restore',
   'session.action.delete': 'Delete',
   'session.action.copy': 'Copy',
 
@@ -74,6 +75,10 @@ export default {
   'dialog.archive.description': 'Are you sure you want to archive "{name}"? This will disconnect active session.',
   'dialog.archive.confirm': 'Archive',
   'dialog.archive.confirming': 'Archiving…',
+  'dialog.restore.title': 'Restore Session',
+  'dialog.restore.description': 'Restore "{name}" and reconnect to the session?',
+  'dialog.restore.confirm': 'Restore',
+  'dialog.restore.confirming': 'Restoring…',
   'dialog.delete.title': 'Delete Session',
   'dialog.delete.description': 'Are you sure you want to delete "{name}"? This action cannot be undone.',
   'dialog.delete.confirm': 'Delete',

@@ -53,6 +53,7 @@ export function SessionChat(props: {
         setModelMode,
         renameSession,
         archiveSession,
+        restoreSession,
         deleteSession,
         isPending
     } = useSessionActions(
@@ -62,6 +63,7 @@ export function SessionChat(props: {
     )
     const [renameOpen, setRenameOpen] = useState(false)
     const [archiveOpen, setArchiveOpen] = useState(false)
+    const [restoreOpen, setRestoreOpen] = useState(false)
     const [deleteOpen, setDeleteOpen] = useState(false)
 
     useEffect(() => {
@@ -182,6 +184,17 @@ export function SessionChat(props: {
         onSendMessage: handleSend,
         onAbort: handleAbort
     })
+    const restoreFlavor = props.session.metadata?.flavor?.trim() || 'claude'
+    const restoreId = restoreFlavor === 'codex'
+        ? props.session.metadata?.codexSessionId
+        : restoreFlavor === 'claude'
+            ? props.session.metadata?.claudeSessionId
+            : undefined
+    const canRestore = !props.session.active && Boolean(
+        props.session.metadata?.machineId
+        && props.session.metadata?.path
+        && restoreId
+    )
 
     return (
         <div className="flex h-full flex-col">
@@ -193,7 +206,19 @@ export function SessionChat(props: {
             {controlsDisabled ? (
                 <div className="px-3 pt-3">
                     <div className="mx-auto w-full max-w-content rounded-md bg-[var(--app-subtle-bg)] p-3 text-sm text-[var(--app-hint)]">
-                        Session is inactive. Controls are disabled.
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                            <span>Session is inactive. Controls are disabled.</span>
+                            {canRestore ? (
+                                <button
+                                    type="button"
+                                    onClick={() => setRestoreOpen(true)}
+                                    className="rounded-full border border-[var(--app-border)] px-3 py-1 text-xs text-[var(--app-fg)] transition-colors hover:bg-[var(--app-secondary-bg)]"
+                                    disabled={isPending}
+                                >
+                                    {t('session.action.restore')}
+                                </button>
+                            ) : null}
+                        </div>
                     </div>
                 </div>
             ) : null}
@@ -265,6 +290,22 @@ export function SessionChat(props: {
                 isPending={isPending}
                 destructive
             />
+
+            {canRestore ? (
+                <ConfirmDialog
+                    isOpen={restoreOpen}
+                    onClose={() => setRestoreOpen(false)}
+                    title={t('dialog.restore.title')}
+                    description={t('dialog.restore.description', { name: sessionTitle })}
+                    confirmLabel={t('dialog.restore.confirm')}
+                    confirmingLabel={t('dialog.restore.confirming')}
+                    onConfirm={async () => {
+                        await restoreSession()
+                        props.onRefresh()
+                    }}
+                    isPending={isPending}
+                />
+            ) : null}
 
             <ConfirmDialog
                 isOpen={deleteOpen}
