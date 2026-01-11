@@ -18,6 +18,8 @@ export const codexCommand: CommandDefinition = {
                 codexArgs?: string[]
                 permissionMode?: CodexPermissionMode
                 resumeSessionId?: string
+                forceNewSession?: boolean
+                sessionTag?: string
             } = {}
             const unknownArgs: string[] = []
 
