@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { SessionSummary } from '@/types/api'
 import type { ApiClient } from '@/api/client'
 import { useLongPress } from '@/hooks/useLongPress'
@@ -28,7 +28,7 @@ function getGroupDisplayName(directory: string): string {
 function groupSessionsByDirectory(sessions: SessionSummary[]): SessionGroup[] {
     const groups = new Map<string, SessionSummary[]>()
 
-    sessions.forEach(session => {
+    sessions.forEach((session) => {
         const path = session.metadata?.worktree?.basePath ?? session.metadata?.path ?? 'Other'
         if (!groups.has(path)) {
             groups.set(path, [])
@@ -44,11 +44,8 @@ function groupSessionsByDirectory(sessions: SessionSummary[]): SessionGroup[] {
                 if (rankA !== rankB) return rankA - rankB
                 return b.updatedAt - a.updatedAt
             })
-            const latestUpdatedAt = groupSessions.reduce(
-                (max, s) => (s.updatedAt > max ? s.updatedAt : max),
-                -Infinity
-            )
-            const hasActiveSession = groupSessions.some(s => s.active)
+            const latestUpdatedAt = groupSessions.reduce((max, s) => (s.updatedAt > max ? s.updatedAt : max), -Infinity)
+            const hasActiveSession = groupSessions.some((s) => s.active)
             const displayName = getGroupDisplayName(directory)
 
             return { directory, displayName, sessions: sortedSessions, latestUpdatedAt, hasActiveSession }
@@ -147,7 +144,10 @@ function getAgentLabel(session: SessionSummary): string {
     return 'unknown'
 }
 
-function formatRelativeTime(value: number, t: (key: string, params?: Record<string, string | number>) => string): string | null {
+function formatRelativeTime(
+    value: number,
+    t: (key: string, params?: Record<string, string | number>) => string
+): string | null {
     const ms = value < 1_000_000_000_000 ? value * 1000 : value
     if (!Number.isFinite(ms)) return null
     const delta = Date.now() - ms
@@ -171,7 +171,7 @@ function SessionItem(props: {
     const { session: s, onSelect, showPath = true, api } = props
     const { haptic } = usePlatform()
     const [menuOpen, setMenuOpen] = useState(false)
-    const menuAnchorRef = useRef<HTMLButtonElement | null>(null)
+    const [menuAnchorPoint, setMenuAnchorPoint] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
     const [renameOpen, setRenameOpen] = useState(false)
     const [archiveOpen, setArchiveOpen] = useState(false)
     const [restoreOpen, setRestoreOpen] = useState(false)
@@ -184,8 +184,9 @@ function SessionItem(props: {
     )
 
     const longPressHandlers = useLongPress({
-        onLongPress: () => {
+        onLongPress: (point) => {
             haptic.impact('medium')
+            setMenuAnchorPoint(point)
             setMenuOpen(true)
         },
         onClick: () => {
@@ -193,49 +194,41 @@ function SessionItem(props: {
                 onSelect(s.id)
             }
         },
-        threshold: 500
+        threshold: 500,
     })
 
     const sessionName = getSessionTitle(s)
     const statusDotClass = s.active
-        ? (s.thinking ? 'bg-[#007AFF]' : 'bg-[var(--app-badge-success-text)]')
+        ? s.thinking
+            ? 'bg-[#007AFF]'
+            : 'bg-[var(--app-badge-success-text)]'
         : 'bg-[var(--app-hint)]'
     const restoreFlavor = s.metadata?.flavor?.trim() || 'claude'
-    const restoreId = restoreFlavor === 'codex'
-        ? s.metadata?.codexSessionId
-        : restoreFlavor === 'claude'
-            ? s.metadata?.claudeSessionId
-            : undefined
-    const canRestore = !s.active && Boolean(
-        s.metadata?.machineId
-        && s.metadata?.path
-        && restoreId
-    )
+    const restoreId =
+        restoreFlavor === 'codex'
+            ? s.metadata?.codexSessionId
+            : restoreFlavor === 'claude'
+              ? s.metadata?.claudeSessionId
+              : undefined
+    const canRestore = !s.active && Boolean(s.metadata?.machineId && s.metadata?.path && restoreId)
     return (
         <>
             <button
                 type="button"
                 {...longPressHandlers}
-                ref={menuAnchorRef}
                 className="session-list-item flex w-full flex-col gap-1.5 px-3 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)] select-none"
                 style={{ WebkitTouchCallout: 'none' }}
             >
                 <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2 min-w-0">
                         <span className="flex h-4 w-4 items-center justify-center" aria-hidden="true">
-                            <span
-                                className={`h-2 w-2 rounded-full ${statusDotClass}`}
-                            />
+                            <span className={`h-2 w-2 rounded-full ${statusDotClass}`} />
                         </span>
-                        <div className="truncate text-sm font-medium">
-                            {sessionName}
-                        </div>
+                        <div className="truncate text-sm font-medium">{sessionName}</div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0 text-xs">
                         {s.thinking ? (
-                            <span className="text-[#007AFF] animate-pulse">
-                                {t('session.item.thinking')}
-                            </span>
+                            <span className="text-[#007AFF] animate-pulse">{t('session.item.thinking')}</span>
                         ) : null}
                         {(() => {
                             const progress = getTodoProgress(s)
@@ -252,15 +245,11 @@ function SessionItem(props: {
                                 {t('session.item.pending')} {s.pendingRequestsCount}
                             </span>
                         ) : null}
-                        <span className="text-[var(--app-hint)]">
-                            {formatRelativeTime(s.updatedAt, t)}
-                        </span>
+                        <span className="text-[var(--app-hint)]">{formatRelativeTime(s.updatedAt, t)}</span>
                     </div>
                 </div>
                 {showPath ? (
-                    <div className="truncate text-xs text-[var(--app-hint)]">
-                        {s.metadata?.path ?? s.id}
-                    </div>
+                    <div className="truncate text-xs text-[var(--app-hint)]">{s.metadata?.path ?? s.id}</div>
                 ) : null}
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--app-hint)]">
                     <span className="inline-flex items-center gap-2">
@@ -269,9 +258,13 @@ function SessionItem(props: {
                         </span>
                         {getAgentLabel(s)}
                     </span>
-                    <span>{t('session.item.modelMode')}: {s.modelMode || 'default'}</span>
+                    <span>
+                        {t('session.item.modelMode')}: {s.modelMode || 'default'}
+                    </span>
                     {s.metadata?.worktree?.branch ? (
-                        <span>{t('session.item.worktree')}: {s.metadata.worktree.branch}</span>
+                        <span>
+                            {t('session.item.worktree')}: {s.metadata.worktree.branch}
+                        </span>
                     ) : null}
                 </div>
             </button>
@@ -284,8 +277,7 @@ function SessionItem(props: {
                 onRestore={canRestore ? () => setRestoreOpen(true) : undefined}
                 onArchive={() => setArchiveOpen(true)}
                 onDelete={() => setDeleteOpen(true)}
-                anchorRef={menuAnchorRef}
-                align="end"
+                anchorPoint={menuAnchorPoint}
             />
 
             <RenameSessionDialog
@@ -350,13 +342,8 @@ export function SessionList(props: {
 }) {
     const { t } = useTranslation()
     const { renderHeader = true, api } = props
-    const groups = useMemo(
-        () => groupSessionsByDirectory(props.sessions),
-        [props.sessions]
-    )
-    const [collapseOverrides, setCollapseOverrides] = useState<Map<string, boolean>>(
-        () => new Map()
-    )
+    const groups = useMemo(() => groupSessionsByDirectory(props.sessions), [props.sessions])
+    const [collapseOverrides, setCollapseOverrides] = useState<Map<string, boolean>>(() => new Map())
     const isGroupCollapsed = (group: SessionGroup): boolean => {
         const override = collapseOverrides.get(group.directory)
         if (override !== undefined) return override
@@ -364,7 +351,7 @@ export function SessionList(props: {
     }
 
     const toggleGroup = (directory: string, isCollapsed: boolean) => {
-        setCollapseOverrides(prev => {
+        setCollapseOverrides((prev) => {
             const next = new Map(prev)
             next.set(directory, !isCollapsed)
             return next
@@ -372,10 +359,10 @@ export function SessionList(props: {
     }
 
     useEffect(() => {
-        setCollapseOverrides(prev => {
+        setCollapseOverrides((prev) => {
             if (prev.size === 0) return prev
             const next = new Map(prev)
-            const knownGroups = new Set(groups.map(group => group.directory))
+            const knownGroups = new Set(groups.map((group) => group.directory))
             let changed = false
             for (const directory of next.keys()) {
                 if (!knownGroups.has(directory)) {
@@ -415,10 +402,7 @@ export function SessionList(props: {
                                 onClick={() => toggleGroup(group.directory, isCollapsed)}
                                 className="sticky top-0 z-10 flex w-full items-center gap-2 px-3 py-2 text-left bg-[var(--app-bg)] border-b border-[var(--app-divider)] transition-colors hover:bg-[var(--app-secondary-bg)]"
                             >
-                                <ChevronIcon
-                                    className="h-4 w-4 text-[var(--app-hint)]"
-                                    collapsed={isCollapsed}
-                                />
+                                <ChevronIcon className="h-4 w-4 text-[var(--app-hint)]" collapsed={isCollapsed} />
                                 <div className="flex items-center gap-2 min-w-0 flex-1">
                                     <span className="font-medium text-sm break-words" title={group.directory}>
                                         {group.displayName}

@@ -1,13 +1,4 @@
-import {
-    useCallback,
-    useEffect,
-    useId,
-    useLayoutEffect,
-    useRef,
-    useState,
-    type CSSProperties,
-    type RefObject
-} from 'react'
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
 import { useTranslation } from '@/lib/use-translation'
 
 type SessionActionMenuProps = {
@@ -18,8 +9,7 @@ type SessionActionMenuProps = {
     onRestore?: () => void
     onArchive: () => void
     onDelete: () => void
-    anchorRef?: RefObject<HTMLElement | null>
-    align?: 'start' | 'end'
+    anchorPoint: { x: number; y: number }
     menuId?: string
 }
 
@@ -115,18 +105,7 @@ type MenuPosition = {
 
 export function SessionActionMenu(props: SessionActionMenuProps) {
     const { t } = useTranslation()
-    const {
-        isOpen,
-        onClose,
-        sessionActive,
-        onRename,
-        onRestore,
-        onArchive,
-        onDelete,
-        anchorRef,
-        align = 'end',
-        menuId
-    } = props
+    const { isOpen, onClose, sessionActive, onRename, onRestore, onArchive, onDelete, anchorPoint, menuId } = props
     const menuRef = useRef<HTMLDivElement | null>(null)
     const [menuPosition, setMenuPosition] = useState<MenuPosition | null>(null)
     const internalId = useId()
@@ -163,32 +142,19 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
         const padding = 8
         const gap = 8
 
-        let top = (viewportHeight - menuRect.height) / 2
-        let left = (viewportWidth - menuRect.width) / 2
-        let transformOrigin = 'top center'
+        const spaceBelow = viewportHeight - anchorPoint.y
+        const spaceAbove = anchorPoint.y
+        const openAbove = spaceBelow < menuRect.height + gap && spaceAbove > spaceBelow
 
-        const anchorEl = anchorRef?.current
-        if (anchorEl) {
-            const anchorRect = anchorEl.getBoundingClientRect()
-            const spaceBelow = viewportHeight - anchorRect.bottom
-            const spaceAbove = anchorRect.top
-            const openAbove = spaceBelow < menuRect.height + gap && spaceAbove > spaceBelow
-
-            top = openAbove ? anchorRect.top - menuRect.height - gap : anchorRect.bottom + gap
-            if (align === 'start') {
-                left = anchorRect.left
-                transformOrigin = openAbove ? 'bottom left' : 'top left'
-            } else {
-                left = anchorRect.right - menuRect.width
-                transformOrigin = openAbove ? 'bottom right' : 'top right'
-            }
-        }
+        let top = openAbove ? anchorPoint.y - menuRect.height - gap : anchorPoint.y + gap
+        let left = anchorPoint.x - menuRect.width / 2
+        const transformOrigin = openAbove ? 'bottom center' : 'top center'
 
         top = Math.min(Math.max(top, padding), viewportHeight - menuRect.height - padding)
         left = Math.min(Math.max(left, padding), viewportWidth - menuRect.width - padding)
 
         setMenuPosition({ top, left, transformOrigin })
-    }, [align, anchorRef])
+    }, [anchorPoint])
 
     useLayoutEffect(() => {
         if (!isOpen) return
@@ -204,7 +170,6 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
         const handlePointerDown = (event: PointerEvent) => {
             const target = event.target as Node
             if (menuRef.current?.contains(target)) return
-            if (anchorRef?.current?.contains(target)) return
             onClose()
         }
 
@@ -229,7 +194,7 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
             window.removeEventListener('resize', handleReflow)
             window.removeEventListener('scroll', handleReflow, true)
         }
-    }, [anchorRef, isOpen, onClose, updatePosition])
+    }, [isOpen, onClose, updatePosition])
 
     useEffect(() => {
         if (!isOpen) return
@@ -246,10 +211,10 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
 
     const menuStyle: CSSProperties | undefined = menuPosition
         ? {
-            top: menuPosition.top,
-            left: menuPosition.left,
-            transformOrigin: menuPosition.transformOrigin
-        }
+              top: menuPosition.top,
+              left: menuPosition.left,
+              transformOrigin: menuPosition.transformOrigin,
+          }
         : undefined
 
     const baseItemClassName =
@@ -267,12 +232,7 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
             >
                 {t('session.more')}
             </div>
-            <div
-                id={resolvedMenuId}
-                role="menu"
-                aria-labelledby={headingId}
-                className="flex flex-col gap-1"
-            >
+            <div id={resolvedMenuId} role="menu" aria-labelledby={headingId} className="flex flex-col gap-1">
                 <button
                     type="button"
                     role="menuitem"
