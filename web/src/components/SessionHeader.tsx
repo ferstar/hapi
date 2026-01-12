@@ -130,9 +130,7 @@ export function SessionHeader(props: {
 
                     {/* Session info - two lines: title and path */}
                     <div className="min-w-0 flex-1">
-                        <div className="truncate font-semibold">
-                            {title}
-                        </div>
+                        <div className="truncate font-semibold">{title}</div>
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-[var(--app-hint)]">
                             <span className="inline-flex items-center gap-1">
                                 <span aria-hidden="true">❖</span>
@@ -142,7 +140,9 @@ export function SessionHeader(props: {
                                 {t('session.item.modelMode')}: {session.modelMode || 'default'}
                             </span>
                             {worktreeBranch ? (
-                                <span>{t('session.item.worktree')}: {worktreeBranch}</span>
+                                <span>
+                                    {t('session.item.worktree')}: {worktreeBranch}
+                                </span>
                             ) : null}
                         </div>
                     </div>

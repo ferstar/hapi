@@ -1,12 +1,4 @@
-import {
-    useCallback,
-    useEffect,
-    useId,
-    useLayoutEffect,
-    useRef,
-    useState,
-    type CSSProperties
-} from 'react'
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
 import { useTranslation } from '@/lib/use-translation'
 
 type SessionActionMenuProps = {
@@ -113,17 +105,7 @@ type MenuPosition = {
 
 export function SessionActionMenu(props: SessionActionMenuProps) {
     const { t } = useTranslation()
-    const {
-        isOpen,
-        onClose,
-        sessionActive,
-        onRename,
-        onRestore,
-        onArchive,
-        onDelete,
-        anchorPoint,
-        menuId
-    } = props
+    const { isOpen, onClose, sessionActive, onRename, onRestore, onArchive, onDelete, anchorPoint, menuId } = props
     const menuRef = useRef<HTMLDivElement | null>(null)
     const [menuPosition, setMenuPosition] = useState<MenuPosition | null>(null)
     const internalId = useId()
@@ -229,10 +211,10 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
 
     const menuStyle: CSSProperties | undefined = menuPosition
         ? {
-            top: menuPosition.top,
-            left: menuPosition.left,
-            transformOrigin: menuPosition.transformOrigin
-        }
+              top: menuPosition.top,
+              left: menuPosition.left,
+              transformOrigin: menuPosition.transformOrigin,
+          }
         : undefined
 
     const baseItemClassName =
@@ -250,12 +232,7 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
             >
                 {t('session.more')}
             </div>
-            <div
-                id={resolvedMenuId}
-                role="menu"
-                aria-labelledby={headingId}
-                className="flex flex-col gap-1"
-            >
+            <div id={resolvedMenuId} role="menu" aria-labelledby={headingId} className="flex flex-col gap-1">
                 <button
                     type="button"
                     role="menuitem"
