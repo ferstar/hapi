@@ -25,6 +25,7 @@ export type SessionBootstrapOptions = {
     tag?: string
     forceNewSession?: boolean
     agentState?: AgentState | null
+    sessionId?: string
 }
 
 export type SessionBootstrapResult = {
@@ -85,7 +86,7 @@ function resolveProjectRoot(workingDirectory: string): string {
     try {
         const root = execFileSync('git', ['rev-parse', '--show-toplevel'], {
             cwd: normalized,
-            encoding: 'utf8'
+            encoding: 'utf8',
         }).trim()
         if (!root) {
             return normalized
@@ -117,12 +118,12 @@ function buildDefaultSessionTag(options: {
         projectRoot: options.projectRoot,
         worktree: options.worktreeInfo
             ? {
-                basePath: options.worktreeInfo.basePath,
-                worktreePath: options.worktreeInfo.worktreePath,
-                branch: options.worktreeInfo.branch,
-                name: options.worktreeInfo.name
-            }
-            : null
+                  basePath: options.worktreeInfo.basePath,
+                  worktreePath: options.worktreeInfo.worktreePath,
+                  branch: options.worktreeInfo.branch,
+                  name: options.worktreeInfo.name,
+              }
+            : null,
     }
     const digest = hashObject(payload, undefined, 'base64url')
     return `hapi:${options.flavor}:${digest}`
@@ -159,6 +160,13 @@ export async function bootstrapSession(options: SessionBootstrapOptions): Promis
     const workingDirectory = options.workingDirectory ?? process.cwd()
     const startedBy = options.startedBy ?? 'terminal'
     const agentState = options.agentState === undefined ? {} : options.agentState
+    const sessionIdOverride = (() => {
+        const fromEnv = process.env.HAPI_SESSION_ID?.trim()
+        if (fromEnv) {
+            return fromEnv
+        }
+        return options.sessionId
+    })()
 
     const api = await ApiClient.create()
 
@@ -166,14 +174,15 @@ export async function bootstrapSession(options: SessionBootstrapOptions): Promis
     const worktreeInfo = readWorktreeEnv()
     const projectRoot = worktreeInfo?.worktreePath ?? resolveProjectRoot(workingDirectory)
     const envTag = process.env.HAPI_SESSION_TAG?.trim()
-    const sessionTag = options.tag
-        ?? (options.forceNewSession ? randomUUID() : undefined)
-        ?? envTag
-        ?? buildDefaultSessionTag({
+    const sessionTag =
+        options.tag ??
+        (options.forceNewSession ? randomUUID() : undefined) ??
+        envTag ??
+        buildDefaultSessionTag({
             flavor: options.flavor,
             machineId,
             projectRoot,
-            worktreeInfo
+            worktreeInfo,
         })
     await api.getOrCreateMachine({
         machineId,

@@ -140,6 +140,7 @@ export class ApiMachineClient {
             const result = await spawnSession({
                 directory,
                 sessionId,
+                syncSessionId,
                 machineId,
                 approvedNewDirectoryCreation,
                 agent,
