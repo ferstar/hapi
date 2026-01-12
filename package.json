@@ -1,7 +1,14 @@
 {
     "name": "hapi",
     "private": true,
-    "workspaces": ["cli", "shared", "server", "web", "website", "docs"],
+    "workspaces": [
+        "cli",
+        "shared",
+        "server",
+        "web",
+        "website",
+        "docs"
+    ],
     "scripts": {
         "build:site": "bun run --cwd website build && bun run --cwd docs docs:build && cp -r docs/.vitepress/dist website/dist/public/docs",
         "dev": "concurrently \"bun run dev:server\" \"bun run dev:web\" --kill-others-on-exit",
@@ -13,6 +20,10 @@
         "build:web": "cd web && bun run build",
         "dev:server": "cd server && bun run dev",
         "dev:web": "cd web && bun run dev",
+        "format": "prettier --write .",
+        "format:check": "prettier --check .",
+        "lint-staged": "lint-staged",
+        "prepare": "husky",
         "typecheck": "bun run typecheck:cli && bun run typecheck:web && bun run typecheck:server",
         "typecheck:cli": "cd cli && bun run typecheck",
         "typecheck:server": "cd server && bun run typecheck",
@@ -24,8 +35,16 @@
         "release-all": "cd cli && bun run release-all"
     },
     "devDependencies": {
+        "@commitlint/cli": "^20.3.1",
+        "@commitlint/config-conventional": "^20.3.1",
         "concurrently": "^9.2.1",
+        "husky": "^9.1.7",
+        "lint-staged": "^15.4.3",
+        "prettier": "^3.4.2",
         "react-devtools-core": "^7.0.1",
         "vite-plugin-pwa": "^1.2.0"
+    },
+    "lint-staged": {
+        "**/*.{js,jsx,ts,tsx,json,md,css,scss,html,yaml,yml}": "prettier --write"
     }
 }
