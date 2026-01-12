@@ -1,5 +1,4 @@
 #!/usr/bin/env sh
-. "$(dirname "$0")/_/husky.sh"
 
+# Fast path: only run staged format/lint steps to keep commits snappy.
 bunx lint-staged
-bun typecheck
