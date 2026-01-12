@@ -22,7 +22,7 @@ export { PushStore } from './pushStore'
 export { SessionStore } from './sessionStore'
 export { UserStore } from './userStore'
 
-const SCHEMA_VERSION = 1
+const SCHEMA_VERSION = 2
 const REQUIRED_TABLES = [
     'sessions',
     'machines',
@@ -85,14 +85,20 @@ export class Store {
 
     private initSchema(): void {
         const currentVersion = this.getUserVersion()
-        if (currentVersion === 0) {
-            if (this.hasAnyUserTables()) {
-                this.setUserVersion(SCHEMA_VERSION)
-                return
-            }
-
+        const hasExistingTables = this.hasAnyUserTables()
+        if (currentVersion === 0 && !hasExistingTables) {
             this.createSchema()
             this.setUserVersion(SCHEMA_VERSION)
+            return
+        }
+
+        if (currentVersion === 0 && hasExistingTables) {
+            this.migrateSchema(1)
+            return
+        }
+
+        if (currentVersion < SCHEMA_VERSION) {
+            this.migrateSchema(currentVersion)
             return
         }
 
@@ -120,7 +126,9 @@ export class Store {
                 todos_updated_at INTEGER,
                 active INTEGER DEFAULT 0,
                 active_at INTEGER,
-                seq INTEGER DEFAULT 0
+                seq INTEGER DEFAULT 0,
+                permission_mode TEXT,
+                model_mode TEXT
             );
             CREATE INDEX IF NOT EXISTS idx_sessions_tag ON sessions(tag);
             CREATE INDEX IF NOT EXISTS idx_sessions_tag_namespace ON sessions(tag, namespace);
@@ -173,6 +181,24 @@ export class Store {
                 UNIQUE(namespace, endpoint)
             );
             CREATE INDEX IF NOT EXISTS idx_push_subscriptions_namespace ON push_subscriptions(namespace);
+        `)
+    }
+
+    private migrateSchema(currentVersion: number): void {
+        if (currentVersion === 1) {
+            this.migrateFrom1To2()
+            this.setUserVersion(SCHEMA_VERSION)
+            this.assertRequiredTablesPresent()
+            return
+        }
+
+        throw this.buildSchemaMismatchError(currentVersion)
+    }
+
+    private migrateFrom1To2(): void {
+        this.db.exec(`
+            ALTER TABLE sessions ADD COLUMN permission_mode TEXT;
+            ALTER TABLE sessions ADD COLUMN model_mode TEXT;
         `)
     }
 

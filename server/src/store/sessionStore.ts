@@ -1,3 +1,4 @@
+import type { ModelMode, PermissionMode } from '@hapi/protocol/types'
 import type { Database } from 'bun:sqlite'
 
 import type { StoredSession, VersionedUpdateResult } from './types'
@@ -10,7 +11,8 @@ import {
     getSessionsByNamespace,
     setSessionTodos,
     updateSessionAgentState,
-    updateSessionMetadata
+    updateSessionMetadata,
+    updateSessionModes
 } from './sessions'
 
 export class SessionStore {
@@ -65,5 +67,13 @@ export class SessionStore {
 
     deleteSession(id: string, namespace: string): boolean {
         return deleteSession(this.db, id, namespace)
+    }
+
+    updateSessionModes(
+        id: string,
+        modes: { permissionMode?: PermissionMode | null; modelMode?: ModelMode | null },
+        namespace: string
+    ): boolean {
+        return updateSessionModes(this.db, id, modes, namespace)
     }
 }

@@ -104,8 +104,8 @@ export class SessionCache {
             thinking: existing?.thinking ?? false,
             thinkingAt: existing?.thinkingAt ?? 0,
             todos,
-            permissionMode: existing?.permissionMode,
-            modelMode: existing?.modelMode
+            permissionMode: existing?.permissionMode ?? stored.permissionMode ?? undefined,
+            modelMode: existing?.modelMode ?? stored.modelMode ?? undefined
         }
 
         this.sessions.set(sessionId, session)
@@ -155,6 +155,16 @@ export class SessionCache {
         const now = Date.now()
         const lastBroadcastAt = this.lastBroadcastAtBySessionId.get(session.id) ?? 0
         const modeChanged = previousPermissionMode !== session.permissionMode || previousModelMode !== session.modelMode
+        if (modeChanged) {
+            this.store.sessions.updateSessionModes(
+                session.id,
+                {
+                    permissionMode: session.permissionMode ?? null,
+                    modelMode: session.modelMode ?? null
+                },
+                session.namespace
+            )
+        }
         const shouldBroadcast = (!wasActive && session.active)
             || (wasThinking !== session.thinking)
             || modeChanged
@@ -215,6 +225,17 @@ export class SessionCache {
         }
         if (config.modelMode !== undefined) {
             session.modelMode = config.modelMode
+        }
+
+        const updates: { permissionMode?: PermissionMode | null; modelMode?: ModelMode | null } = {}
+        if (config.permissionMode !== undefined) {
+            updates.permissionMode = config.permissionMode ?? null
+        }
+        if (config.modelMode !== undefined) {
+            updates.modelMode = config.modelMode ?? null
+        }
+        if (Object.keys(updates).length > 0) {
+            this.store.sessions.updateSessionModes(sessionId, updates, session.namespace)
         }
 
         this.publisher.emit({ type: 'session-updated', sessionId, data: session })
