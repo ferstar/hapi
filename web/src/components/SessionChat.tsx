@@ -18,6 +18,7 @@ import { useSessionActions } from '@/hooks/mutations/useSessionActions'
 import { RenameSessionDialog } from '@/components/RenameSessionDialog'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useTranslation } from '@/lib/use-translation'
+import type { CliOutputBlock } from '@/chat/types'
 
 export function SessionChat(props: {
     api: ApiClient
@@ -189,9 +190,33 @@ export function SessionChat(props: {
         return props.session.id.slice(0, 8)
     }, [props.session.id, props.session.metadata])
 
+    const displayBlocks = useMemo(() => {
+        const isNoiseCliOutput = (block: CliOutputBlock): boolean => {
+            // Skip the empty/approval-only terminal logs that show up during permission prompts.
+            const text = block.text ?? ''
+            const getTag = (tag: string): string | null => {
+                const match = text.match(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`, 'i'))
+                return match && typeof match[1] === 'string' ? match[1].trim() : null
+            }
+            const name = getTag('command-name')
+            const args = getTag('command-args')
+            const stdout = getTag('local-command-stdout')
+            const hasEmptyCommand = !name && (!args || args === '[]' || args === '')
+            const approvedOnly = typeof stdout === 'string' && stdout.trim().toLowerCase() === 'approved'
+            return hasEmptyCommand && approvedOnly
+        }
+
+        return reconciled.blocks.filter((block) => {
+            if (block.kind !== 'cli-output') return true
+            // Only filter noise when not in yolo mode; yolo users likely expect all terminal logs.
+            if (props.session.permissionMode === 'yolo') return true
+            return !isNoiseCliOutput(block)
+        })
+    }, [props.session.permissionMode, reconciled.blocks])
+
     const runtime = useHappyRuntime({
         session: props.session,
-        blocks: reconciled.blocks,
+        blocks: displayBlocks,
         isSending: props.isSending,
         onSendMessage: handleSend,
         onAbort: handleAbort,
