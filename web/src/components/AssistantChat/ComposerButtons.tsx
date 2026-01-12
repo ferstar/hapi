@@ -76,8 +76,8 @@ function SendIcon() {
     return (
         <svg
             xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
+            width="18"
+            height="18"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -125,140 +125,146 @@ export function ComposerButtons(props: {
 
     return (
         <div className="flex items-center justify-between px-2 pb-2">
-            <div className="flex items-center gap-1">
-                {props.showRenameButton ? (
-                    <button
-                        type="button"
-                        aria-label={t('session.action.rename')}
-                        title={t('session.action.rename')}
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-fg)]/60 transition-colors hover:bg-[var(--app-bg)] hover:text-[var(--app-fg)] disabled:cursor-not-allowed disabled:opacity-50"
-                        onClick={props.onRename}
-                        disabled={props.renameDisabled}
-                    >
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="18"
-                            height="18"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
+            <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                    {props.showRenameButton ? (
+                        <button
+                            type="button"
+                            aria-label={t('session.action.rename')}
+                            title={t('session.action.rename')}
+                            className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--app-fg)]/65 transition-colors hover:bg-[var(--app-bg)] hover:text-[var(--app-fg)] disabled:cursor-not-allowed disabled:opacity-50"
+                            onClick={props.onRename}
+                            disabled={props.renameDisabled}
                         >
-                            <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-                            <path d="m15 5 4 4" />
-                        </svg>
-                    </button>
-                ) : null}
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="18"
+                                height="18"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                            >
+                                <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                                <path d="m15 5 4 4" />
+                            </svg>
+                        </button>
+                    ) : null}
 
-                {props.showArchiveButton ? (
-                    <button
-                        type="button"
-                        aria-label={t('session.action.archive')}
-                        title={t('session.action.archive')}
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-fg)]/60 transition-colors hover:bg-[var(--app-bg)] hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-50"
-                        onClick={props.onArchive}
-                        disabled={props.archiveDisabled}
-                    >
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="18"
-                            height="18"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
+                    {props.showArchiveButton ? (
+                        <button
+                            type="button"
+                            aria-label={t('session.action.archive')}
+                            title={t('session.action.archive')}
+                            className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--app-fg)]/65 transition-colors hover:bg-[var(--app-bg)] hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+                            onClick={props.onArchive}
+                            disabled={props.archiveDisabled}
                         >
-                            <rect width="20" height="5" x="2" y="3" rx="1" />
-                            <path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8" />
-                            <path d="M10 12h4" />
-                        </svg>
-                    </button>
-                ) : null}
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="18"
+                                height="18"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                            >
+                                <rect width="20" height="5" x="2" y="3" rx="1" />
+                                <path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8" />
+                                <path d="M10 12h4" />
+                            </svg>
+                        </button>
+                    ) : null}
 
-                {props.showDeleteButton ? (
-                    <button
-                        type="button"
-                        aria-label={t('session.action.delete')}
-                        title={t('session.action.delete')}
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-fg)]/60 transition-colors hover:bg-[var(--app-bg)] hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-50"
-                        onClick={props.onDelete}
-                        disabled={props.deleteDisabled}
-                    >
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="18"
-                            height="18"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
+                    {props.showDeleteButton ? (
+                        <button
+                            type="button"
+                            aria-label={t('session.action.delete')}
+                            title={t('session.action.delete')}
+                            className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--app-fg)]/65 transition-colors hover:bg-[var(--app-bg)] hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+                            onClick={props.onDelete}
+                            disabled={props.deleteDisabled}
                         >
-                            <path d="M3 6h18" />
-                            <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                            <path d="M10 11v6" />
-                            <path d="M14 11v6" />
-                        </svg>
-                    </button>
-                ) : null}
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="18"
+                                height="18"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                            >
+                                <path d="M3 6h18" />
+                                <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+                                <path d="M10 11v6" />
+                                <path d="M14 11v6" />
+                            </svg>
+                        </button>
+                    ) : null}
+                </div>
 
-                {props.showTerminalButton ? (
-                    <button
-                        type="button"
-                        aria-label={props.terminalConfirmActive ? t('composer.terminalConfirm') : t('composer.terminal')}
-                        title={props.terminalConfirmActive ? t('composer.terminalConfirm') : t('composer.terminal')}
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-fg)]/60 transition-colors hover:bg-[var(--app-bg)] hover:text-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
-                        onClick={props.onTerminal}
-                        disabled={props.terminalDisabled}
-                    >
-                        <TerminalIcon />
-                    </button>
-                ) : null}
+                <div className="h-8 w-px bg-[var(--app-fg)]/10" />
 
-                {props.showFilesButton ? (
-                    <button
-                        type="button"
-                        aria-label={props.filesConfirmActive ? t('composer.filesConfirm') : t('session.title')}
-                        title={props.filesConfirmActive ? t('composer.filesConfirm') : t('session.title')}
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-fg)]/60 transition-colors hover:bg-[var(--app-bg)] hover:text-[var(--app-fg)] disabled:cursor-not-allowed disabled:opacity-50"
-                        onClick={props.onFiles}
-                        disabled={props.filesDisabled}
-                    >
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="18"
-                            height="18"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
+                <div className="flex items-center gap-2">
+                    {props.showTerminalButton ? (
+                        <button
+                            type="button"
+                            aria-label={props.terminalConfirmActive ? t('composer.terminalConfirm') : t('composer.terminal')}
+                            title={props.terminalConfirmActive ? t('composer.terminalConfirm') : t('composer.terminal')}
+                            className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--app-fg)]/65 transition-colors hover:bg-[var(--app-bg)] hover:text-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+                            onClick={props.onTerminal}
+                            disabled={props.terminalDisabled}
                         >
-                            <path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
-                            <path d="M14 2v6h6" />
-                        </svg>
-                    </button>
-                ) : null}
+                            <TerminalIcon />
+                        </button>
+                    ) : null}
 
-                {props.showSwitchButton ? (
-                    <button
-                        type="button"
-                        aria-label={t('composer.switchRemote')}
-                        title={t('composer.switchRemote')}
-                        disabled={props.switchDisabled}
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-fg)]/60 transition-colors hover:bg-[var(--app-bg)] hover:text-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
-                        onClick={props.onSwitch}
-                    >
-                        <SwitchToRemoteIcon />
-                    </button>
-                ) : null}
+                    {props.showFilesButton ? (
+                        <button
+                            type="button"
+                            aria-label={props.filesConfirmActive ? t('composer.filesConfirm') : t('session.title')}
+                            title={props.filesConfirmActive ? t('composer.filesConfirm') : t('session.title')}
+                            className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--app-fg)]/65 transition-colors hover:bg-[var(--app-bg)] hover:text-[var(--app-fg)] disabled:cursor-not-allowed disabled:opacity-50"
+                            onClick={props.onFiles}
+                            disabled={props.filesDisabled}
+                        >
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="18"
+                                height="18"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                            >
+                                <path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+                                <path d="M14 2v6h6" />
+                            </svg>
+                        </button>
+                    ) : null}
+
+                    {props.showSwitchButton ? (
+                        <button
+                            type="button"
+                            aria-label={t('composer.switchRemote')}
+                            title={t('composer.switchRemote')}
+                            disabled={props.switchDisabled}
+                            className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--app-fg)]/65 transition-colors hover:bg-[var(--app-bg)] hover:text-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                            onClick={props.onSwitch}
+                        >
+                            <SwitchToRemoteIcon />
+                        </button>
+                    ) : null}
+                </div>
             </div>
 
             {props.threadIsRunning ? (
@@ -267,7 +273,7 @@ export function ComposerButtons(props: {
                     aria-label={props.abortConfirmActive ? t('composer.abortConfirm') : t('composer.abort')}
                     title={props.abortConfirmActive ? t('composer.abortConfirm') : t('composer.abort')}
                     disabled={props.abortDisabled}
-                    className="flex h-8 w-8 items-center justify-center rounded-full bg-red-500 text-white transition-colors hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="flex h-9 w-9 items-center justify-center rounded-full bg-red-500 text-white transition-colors hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50"
                     onClick={props.onAbort}
                 >
                     <AbortIcon spinning={props.threadIsRunning || props.isAborting} />
@@ -277,7 +283,7 @@ export function ComposerButtons(props: {
                     disabled={props.controlsDisabled || !props.canSend}
                     aria-label={t('composer.send')}
                     title={t('composer.send')}
-                    className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${
+                    className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors ${
                         props.canSend && !props.controlsDisabled
                             ? 'bg-black text-white'
                             : 'bg-[#C0C0C0] text-white'
