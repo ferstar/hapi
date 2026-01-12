@@ -1,0 +1,17 @@
+node_modules
+.bun
+dist
+build
+coverage
+.cache
+.output
+.next
+.turbo
+**/dist
+**/build
+**/coverage
+bun.lock
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+.DS_Store
