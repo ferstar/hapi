@@ -4,6 +4,7 @@ import {
     type ChangeEvent as ReactChangeEvent,
     type FormEvent as ReactFormEvent,
     type KeyboardEvent as ReactKeyboardEvent,
+    type PointerEvent as ReactPointerEvent,
     type SyntheticEvent as ReactSyntheticEvent,
     useCallback,
     useEffect,
@@ -117,12 +118,18 @@ export function HappyComposer(props: {
     const [terminalConfirmActive, setTerminalConfirmActive] = useState(false)
     const [filesConfirmActive, setFilesConfirmActive] = useState(false)
     const [showContinueHint, setShowContinueHint] = useState(false)
+    const [manualHeight, setManualHeight] = useState<number | null>(null)
+    const [showResizeHandle, setShowResizeHandle] = useState(false)
+    const [isDraggingResize, setIsDraggingResize] = useState(false)
 
     const textareaRef = useRef<HTMLTextAreaElement>(null)
     const prevControlledByUser = useRef(controlledByUser)
     const abortConfirmTimer = useRef<number | null>(null)
     const terminalConfirmTimer = useRef<number | null>(null)
     const filesConfirmTimer = useRef<number | null>(null)
+    const settingsOverlayRef = useRef<HTMLDivElement>(null)
+    const settingsButtonRef = useRef<HTMLButtonElement>(null)
+    const resizeStartRef = useRef<{ startY: number; startHeight: number } | null>(null)
 
     useEffect(() => {
         setInputState((prev) => {
@@ -401,6 +408,25 @@ export function HappyComposer(props: {
     )
 
     useEffect(() => {
+        if (!showSettings) return undefined
+
+        const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+            const target = event.target as Node | null
+            if (!target) return
+            if (settingsOverlayRef.current && settingsOverlayRef.current.contains(target)) return
+            if (settingsButtonRef.current && settingsButtonRef.current.contains(target)) return
+            setShowSettings(false)
+        }
+
+        document.addEventListener('mousedown', handleClickOutside)
+        document.addEventListener('touchstart', handleClickOutside)
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside)
+            document.removeEventListener('touchstart', handleClickOutside)
+        }
+    }, [showSettings])
+
+    useEffect(() => {
         const handleGlobalKeyDown = (e: globalThis.KeyboardEvent) => {
             if (
                 e.key === 'm' &&
@@ -421,13 +447,51 @@ export function HappyComposer(props: {
         return () => window.removeEventListener('keydown', handleGlobalKeyDown)
     }, [modelMode, onModelModeChange, haptic, agentFlavor])
 
+    const updateOverflowIndicator = useCallback(() => {
+        const el = textareaRef.current
+        if (!el) return
+        const isOverflowing = el.scrollHeight - el.clientHeight > 2
+        setShowResizeHandle(!isTouch && (isOverflowing || isDraggingResize))
+    }, [isDraggingResize, isTouch])
+
     const handleChange = useCallback((e: ReactChangeEvent<HTMLTextAreaElement>) => {
         const selection = {
             start: e.target.selectionStart,
             end: e.target.selectionEnd,
         }
         setInputState({ text: e.target.value, selection })
+        updateOverflowIndicator()
+    }, [updateOverflowIndicator])
+
+    const handlePointerMove = useCallback((e: PointerEvent) => {
+        const el = textareaRef.current
+        const resizeStart = resizeStartRef.current
+        if (!el || !resizeStart) return
+        const minHeight = 96
+        const nextHeight = Math.max(minHeight, resizeStart.startHeight + (e.clientY - resizeStart.startY))
+        setManualHeight(nextHeight)
     }, [])
+
+    const handlePointerUp = useCallback(() => {
+        resizeStartRef.current = null
+        setIsDraggingResize(false)
+        window.removeEventListener('pointermove', handlePointerMove)
+        window.removeEventListener('pointerup', handlePointerUp)
+        updateOverflowIndicator()
+    }, [handlePointerMove, updateOverflowIndicator])
+
+    const handleResizePointerDown = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
+        const el = textareaRef.current
+        if (!el) return
+        resizeStartRef.current = {
+            startY: e.clientY,
+            startHeight: el.getBoundingClientRect().height
+        }
+        setIsDraggingResize(true)
+        window.addEventListener('pointermove', handlePointerMove)
+        window.addEventListener('pointerup', handlePointerUp)
+        e.preventDefault()
+    }, [handlePointerMove, handlePointerUp])
 
     const handleSelect = useCallback((e: ReactSyntheticEvent<HTMLTextAreaElement>) => {
         const target = e.target as HTMLTextAreaElement
@@ -436,6 +500,23 @@ export function HappyComposer(props: {
             selection: { start: target.selectionStart, end: target.selectionEnd },
         }))
     }, [])
+
+    useEffect(() => {
+        updateOverflowIndicator()
+    }, [composerText, manualHeight, updateOverflowIndicator])
+
+    useEffect(() => {
+        const el = textareaRef.current
+        if (!el || typeof ResizeObserver === 'undefined') return
+        const observer = new ResizeObserver(() => updateOverflowIndicator())
+        observer.observe(el)
+        return () => observer.disconnect()
+    }, [updateOverflowIndicator])
+
+    useEffect(() => () => {
+        window.removeEventListener('pointermove', handlePointerMove)
+        window.removeEventListener('pointerup', handlePointerUp)
+    }, [handlePointerMove, handlePointerUp])
 
     const handleSettingsToggle = useCallback(() => {
         haptic('light')
@@ -484,7 +565,7 @@ export function HappyComposer(props: {
     const overlays = useMemo(() => {
         if (showSettings && (showPermissionSettings || showModelSettings)) {
             return (
-                <div className="absolute bottom-[100%] right-0 mb-2 w-fit min-w-[200px]">
+                <div ref={settingsOverlayRef} className="absolute bottom-[100%] right-0 mb-2 w-fit min-w-[200px]">
                     <FloatingOverlay maxHeight={320}>
                         {showPermissionSettings ? (
                             <div className="py-2">
@@ -616,6 +697,7 @@ export function HappyComposer(props: {
                         agentFlavor={agentFlavor}
                         showSettingsButton={showSettingsButton}
                         onSettingsToggle={handleSettingsToggle}
+                        settingsButtonRef={settingsButtonRef}
                         controlsDisabled={controlsDisabled}
                     />
 
