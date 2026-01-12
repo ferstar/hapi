@@ -3,7 +3,6 @@ import { ComposerPrimitive, useAssistantApi, useAssistantState } from '@assistan
 import {
     type ChangeEvent as ReactChangeEvent,
     type KeyboardEvent as ReactKeyboardEvent,
-    type PointerEvent as ReactPointerEvent,
     type SyntheticEvent as ReactSyntheticEvent,
     useCallback,
     useEffect,
@@ -102,9 +101,6 @@ export function HappyComposer(props: {
     const [terminalConfirmActive, setTerminalConfirmActive] = useState(false)
     const [filesConfirmActive, setFilesConfirmActive] = useState(false)
     const [showContinueHint, setShowContinueHint] = useState(false)
-    const [manualHeight, setManualHeight] = useState<number | null>(null)
-    const [showResizeHandle, setShowResizeHandle] = useState(false)
-    const [isDraggingResize, setIsDraggingResize] = useState(false)
 
     const textareaRef = useRef<HTMLTextAreaElement>(null)
     const prevControlledByUser = useRef(controlledByUser)
@@ -113,7 +109,6 @@ export function HappyComposer(props: {
     const filesConfirmTimer = useRef<number | null>(null)
     const settingsOverlayRef = useRef<HTMLDivElement>(null)
     const settingsButtonRef = useRef<HTMLButtonElement>(null)
-    const resizeStartRef = useRef<{ startY: number; startHeight: number } | null>(null)
 
     useEffect(() => {
         setInputState((prev) => {
@@ -422,51 +417,13 @@ export function HappyComposer(props: {
         return () => window.removeEventListener('keydown', handleGlobalKeyDown)
     }, [modelMode, onModelModeChange, haptic, agentFlavor])
 
-    const updateOverflowIndicator = useCallback(() => {
-        const el = textareaRef.current
-        if (!el) return
-        const isOverflowing = el.scrollHeight - el.clientHeight > 2
-        setShowResizeHandle(!isTouch && (isOverflowing || isDraggingResize))
-    }, [isDraggingResize, isTouch])
-
     const handleChange = useCallback((e: ReactChangeEvent<HTMLTextAreaElement>) => {
         const selection = {
             start: e.target.selectionStart,
             end: e.target.selectionEnd
         }
         setInputState({ text: e.target.value, selection })
-        updateOverflowIndicator()
-    }, [updateOverflowIndicator])
-
-    const handlePointerMove = useCallback((e: PointerEvent) => {
-        const el = textareaRef.current
-        const resizeStart = resizeStartRef.current
-        if (!el || !resizeStart) return
-        const minHeight = 96
-        const nextHeight = Math.max(minHeight, resizeStart.startHeight + (e.clientY - resizeStart.startY))
-        setManualHeight(nextHeight)
     }, [])
-
-    const handlePointerUp = useCallback(() => {
-        resizeStartRef.current = null
-        setIsDraggingResize(false)
-        window.removeEventListener('pointermove', handlePointerMove)
-        window.removeEventListener('pointerup', handlePointerUp)
-        updateOverflowIndicator()
-    }, [handlePointerMove, updateOverflowIndicator])
-
-    const handleResizePointerDown = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
-        const el = textareaRef.current
-        if (!el) return
-        resizeStartRef.current = {
-            startY: e.clientY,
-            startHeight: el.getBoundingClientRect().height
-        }
-        setIsDraggingResize(true)
-        window.addEventListener('pointermove', handlePointerMove)
-        window.addEventListener('pointerup', handlePointerUp)
-        e.preventDefault()
-    }, [handlePointerMove, handlePointerUp])
 
     const handleSelect = useCallback((e: ReactSyntheticEvent<HTMLTextAreaElement>) => {
         const target = e.target as HTMLTextAreaElement
@@ -475,23 +432,6 @@ export function HappyComposer(props: {
             selection: { start: target.selectionStart, end: target.selectionEnd }
         }))
     }, [])
-
-    useEffect(() => {
-        updateOverflowIndicator()
-    }, [composerText, manualHeight, updateOverflowIndicator])
-
-    useEffect(() => {
-        const el = textareaRef.current
-        if (!el || typeof ResizeObserver === 'undefined') return
-        const observer = new ResizeObserver(() => updateOverflowIndicator())
-        observer.observe(el)
-        return () => observer.disconnect()
-    }, [updateOverflowIndicator])
-
-    useEffect(() => () => {
-        window.removeEventListener('pointermove', handlePointerMove)
-        window.removeEventListener('pointerup', handlePointerUp)
-    }, [handlePointerMove, handlePointerUp])
 
     const handleSettingsToggle = useCallback(() => {
         haptic('light')
@@ -661,21 +601,16 @@ export function HappyComposer(props: {
                         controlsDisabled={controlsDisabled}
                     />
 
-                    <div className="relative overflow-hidden rounded-[20px] bg-[var(--app-secondary-bg)]">
-                        {showResizeHandle && !controlsDisabled ? (
-                            <div
-                                className={`absolute left-3 top-3 z-10 h-4 w-4 cursor-ns-resize rounded-full border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] shadow-sm transition-opacity ${isDraggingResize ? 'opacity-100' : 'opacity-70 hover:opacity-100'}`}
-                                role="presentation"
-                                onPointerDown={handleResizePointerDown}
-                                title="Drag to resize"
-                            />
-                        ) : null}
+                    <div
+                        className="relative overflow-hidden rounded-[20px] bg-[var(--app-secondary-bg)]"
+                    >
                         <div className="flex items-start px-4 py-3">
                             <ComposerPrimitive.Input
                                 ref={textareaRef}
                                 autoFocus={!controlsDisabled && !isTouch}
                                 placeholder={showContinueHint ? t('misc.typeMessage') : t('misc.typeAMessage')}
                                 disabled={controlsDisabled}
+                                minRows={2}
                                 maxRows={10}
                                 submitOnEnter
                                 cancelOnEscape={false}
@@ -683,8 +618,7 @@ export function HappyComposer(props: {
                                 onSelect={handleSelect}
                                 onKeyDown={handleKeyDown}
                                 onSubmit={handleSubmit}
-                                className="flex-1 min-h-[96px] resize-none overflow-y-auto bg-transparent text-sm leading-snug text-[var(--app-fg)] placeholder-[var(--app-hint)] focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-                                style={manualHeight ? { height: manualHeight } : undefined}
+                                className="flex-1 resize-none overflow-y-auto bg-transparent text-sm leading-snug text-[var(--app-fg)] placeholder-[var(--app-hint)] focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
                             />
                         </div>
 
