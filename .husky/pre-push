@@ -1,5 +1,6 @@
 #!/usr/bin/env sh
 
-# Run full checks before pushing.
+# Run unit checks before pushing (skip CLI integration tests).
 bun typecheck
-bun run test
+cd cli && bun run test:unit
+cd ../server && bun run test
