@@ -1,3 +1,5 @@
+import type { ModelMode, PermissionMode } from '@hapi/protocol/types'
+
 export type StoredSession = {
     id: string
     tag: string | null
@@ -14,6 +16,8 @@ export type StoredSession = {
     active: boolean
     activeAt: number | null
     seq: number
+    permissionMode: PermissionMode | null
+    modelMode: ModelMode | null
 }
 
 export type StoredMachine = {

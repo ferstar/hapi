@@ -1,3 +1,4 @@
+import type { ModelMode, PermissionMode } from '@hapi/protocol/types'
 import type { Database } from 'bun:sqlite'
 import { randomUUID } from 'node:crypto'
 
@@ -21,6 +22,8 @@ type DbSessionRow = {
     active: number
     active_at: number | null
     seq: number
+    permission_mode: string | null
+    model_mode: string | null
 }
 
 function toStoredSession(row: DbSessionRow): StoredSession {
@@ -39,7 +42,9 @@ function toStoredSession(row: DbSessionRow): StoredSession {
         todosUpdatedAt: row.todos_updated_at,
         active: row.active === 1,
         activeAt: row.active_at,
-        seq: row.seq
+        seq: row.seq,
+        permissionMode: (row.permission_mode ?? null) as PermissionMode | null,
+        modelMode: (row.model_mode ?? null) as ModelMode | null
     }
 }
 
@@ -217,5 +222,51 @@ export function deleteSession(db: Database, id: string, namespace: string): bool
     const result = db.prepare(
         'DELETE FROM sessions WHERE id = ? AND namespace = ?'
     ).run(id, namespace)
+    return result.changes > 0
+}
+
+export function updateSessionModes(
+    db: Database,
+    id: string,
+    modes: { permissionMode?: PermissionMode | null; modelMode?: ModelMode | null },
+    namespace: string
+): boolean {
+    const updates: string[] = []
+    const params: {
+        id: string
+        namespace: string
+        updated_at: number
+        permission_mode?: PermissionMode | null
+        model_mode?: ModelMode | null
+    } = {
+        id,
+        namespace,
+        updated_at: Date.now()
+    }
+
+    if (modes.permissionMode !== undefined) {
+        updates.push('permission_mode = @permission_mode')
+        params.permission_mode = modes.permissionMode ?? null
+    }
+
+    if (modes.modelMode !== undefined) {
+        updates.push('model_mode = @model_mode')
+        params.model_mode = modes.modelMode ?? null
+    }
+
+    if (updates.length === 0) {
+        return false
+    }
+
+    updates.push('updated_at = @updated_at', 'seq = seq + 1')
+
+    const setClause = updates.join(', ')
+    const result = db.prepare(`
+        UPDATE sessions
+        SET ${setClause}
+        WHERE id = @id
+          AND namespace = @namespace
+    `).run(params)
+
     return result.changes > 0
 }
