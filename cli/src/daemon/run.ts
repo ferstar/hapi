@@ -177,7 +177,7 @@ export async function startDaemon(): Promise<void> {
     const spawnSession = async (options: SpawnSessionOptions): Promise<SpawnSessionResult> => {
       logger.debugLargeJson('[DAEMON RUN] Spawning session', options);
 
-      const { directory, sessionId, machineId, approvedNewDirectoryCreation = true } = options;
+      const { directory, sessionId, syncSessionId, machineId, approvedNewDirectoryCreation = true } = options;
       const agent = options.agent ?? 'claude';
       const yolo = options.yolo === true;
       const sessionType = options.sessionType ?? 'simple';
@@ -309,6 +309,13 @@ export async function startDaemon(): Promise<void> {
               CLAUDE_CODE_OAUTH_TOKEN: options.token
             };
           }
+        }
+
+        if (syncSessionId) {
+          extraEnv = {
+            ...extraEnv,
+            HAPI_SESSION_ID: syncSessionId
+          };
         }
 
         if (worktreeInfo) {

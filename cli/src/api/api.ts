@@ -6,6 +6,39 @@ import { getAuthToken } from '@/api/auth'
 import { ApiMachineClient } from './apiMachine'
 import { ApiSessionClient } from './apiSession'
 
+function normalizeSessionResponse(raw: CreateSessionResponse['session']): Session {
+    const metadata = (() => {
+        if (raw.metadata == null) return null
+        const parsedMetadata = MetadataSchema.safeParse(raw.metadata)
+        return parsedMetadata.success ? parsedMetadata.data : null
+    })()
+
+    const agentState = (() => {
+        if (raw.agentState == null) return null
+        const parsedAgentState = AgentStateSchema.safeParse(raw.agentState)
+        return parsedAgentState.success ? parsedAgentState.data : null
+    })()
+
+    return {
+        id: raw.id,
+        namespace: raw.namespace,
+        seq: raw.seq,
+        createdAt: raw.createdAt,
+        updatedAt: raw.updatedAt,
+        active: raw.active,
+        activeAt: raw.activeAt,
+        metadata,
+        metadataVersion: raw.metadataVersion,
+        agentState,
+        agentStateVersion: raw.agentStateVersion,
+        thinking: raw.thinking,
+        thinkingAt: raw.thinkingAt,
+        todos: raw.todos,
+        permissionMode: raw.permissionMode,
+        modelMode: raw.modelMode
+    }
+}
+
 export class ApiClient {
     static async create(): Promise<ApiClient> {
         return new ApiClient(getAuthToken())
@@ -39,38 +72,26 @@ export class ApiClient {
             throw new Error('Invalid /cli/sessions response')
         }
 
-        const raw = parsed.data.session
+        return normalizeSessionResponse(parsed.data.session)
+    }
 
-        const metadata = (() => {
-            if (raw.metadata == null) return null
-            const parsedMetadata = MetadataSchema.safeParse(raw.metadata)
-            return parsedMetadata.success ? parsedMetadata.data : null
-        })()
+    async getSessionById(sessionId: string): Promise<Session> {
+        const response = await axios.get<CreateSessionResponse>(
+            `${configuration.serverUrl}/cli/sessions/${encodeURIComponent(sessionId)}`,
+            {
+                headers: {
+                    Authorization: `Bearer ${this.token}`
+                },
+                timeout: 30_000
+            }
+        )
 
-        const agentState = (() => {
-            if (raw.agentState == null) return null
-            const parsedAgentState = AgentStateSchema.safeParse(raw.agentState)
-            return parsedAgentState.success ? parsedAgentState.data : null
-        })()
-
-        return {
-            id: raw.id,
-            namespace: raw.namespace,
-            seq: raw.seq,
-            createdAt: raw.createdAt,
-            updatedAt: raw.updatedAt,
-            active: raw.active,
-            activeAt: raw.activeAt,
-            metadata,
-            metadataVersion: raw.metadataVersion,
-            agentState,
-            agentStateVersion: raw.agentStateVersion,
-            thinking: raw.thinking,
-            thinkingAt: raw.thinkingAt,
-            todos: raw.todos,
-            permissionMode: raw.permissionMode,
-            modelMode: raw.modelMode
+        const parsed = CreateSessionResponseSchema.safeParse(response.data)
+        if (!parsed.success) {
+            throw new Error('Invalid /cli/sessions/:id response')
         }
+
+        return normalizeSessionResponse(parsed.data.session)
     }
 
     async getOrCreateMachine(opts: {
