@@ -88,8 +88,8 @@ function SendIcon() {
     return (
         <svg
             xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
+            width="18"
+            height="18"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -147,57 +147,61 @@ export function ComposerButtons(props: {
                     <AttachmentIcon />
                 </ComposerPrimitive.AddAttachment>
 
-                {props.showTerminalButton ? (
-                    <button
-                        type="button"
-                        aria-label={props.terminalConfirmActive ? t('composer.terminalConfirm') : t('composer.terminal')}
-                        title={props.terminalConfirmActive ? t('composer.terminalConfirm') : t('composer.terminal')}
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-fg)]/60 transition-colors hover:bg-[var(--app-bg)] hover:text-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
-                        onClick={props.onTerminal}
-                        disabled={props.terminalDisabled}
-                    >
-                        <TerminalIcon />
-                    </button>
-                ) : null}
+                <div className="h-8 w-px bg-[var(--app-fg)]/10" />
 
-                {props.showFilesButton ? (
-                    <button
-                        type="button"
-                        aria-label={props.filesConfirmActive ? t('composer.filesConfirm') : t('session.title')}
-                        title={props.filesConfirmActive ? t('composer.filesConfirm') : t('session.title')}
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-fg)]/60 transition-colors hover:bg-[var(--app-bg)] hover:text-[var(--app-fg)] disabled:cursor-not-allowed disabled:opacity-50"
-                        onClick={props.onFiles}
-                        disabled={props.filesDisabled}
-                    >
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="18"
-                            height="18"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
+                <div className="flex items-center gap-2">
+                    {props.showTerminalButton ? (
+                        <button
+                            type="button"
+                            aria-label={props.terminalConfirmActive ? t('composer.terminalConfirm') : t('composer.terminal')}
+                            title={props.terminalConfirmActive ? t('composer.terminalConfirm') : t('composer.terminal')}
+                            className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--app-fg)]/65 transition-colors hover:bg-[var(--app-bg)] hover:text-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+                            onClick={props.onTerminal}
+                            disabled={props.terminalDisabled}
                         >
-                            <path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
-                            <path d="M14 2v6h6" />
-                        </svg>
-                    </button>
-                ) : null}
+                            <TerminalIcon />
+                        </button>
+                    ) : null}
 
-                {props.showSwitchButton ? (
-                    <button
-                        type="button"
-                        aria-label={t('composer.switchRemote')}
-                        title={t('composer.switchRemote')}
-                        disabled={props.switchDisabled}
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-fg)]/60 transition-colors hover:bg-[var(--app-bg)] hover:text-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
-                        onClick={props.onSwitch}
-                    >
-                        <SwitchToRemoteIcon />
-                    </button>
-                ) : null}
+                    {props.showFilesButton ? (
+                        <button
+                            type="button"
+                            aria-label={props.filesConfirmActive ? t('composer.filesConfirm') : t('session.title')}
+                            title={props.filesConfirmActive ? t('composer.filesConfirm') : t('session.title')}
+                            className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--app-fg)]/65 transition-colors hover:bg-[var(--app-bg)] hover:text-[var(--app-fg)] disabled:cursor-not-allowed disabled:opacity-50"
+                            onClick={props.onFiles}
+                            disabled={props.filesDisabled}
+                        >
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="18"
+                                height="18"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                            >
+                                <path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+                                <path d="M14 2v6h6" />
+                            </svg>
+                        </button>
+                    ) : null}
+
+                    {props.showSwitchButton ? (
+                        <button
+                            type="button"
+                            aria-label={t('composer.switchRemote')}
+                            title={t('composer.switchRemote')}
+                            disabled={props.switchDisabled}
+                            className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--app-fg)]/65 transition-colors hover:bg-[var(--app-bg)] hover:text-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                            onClick={props.onSwitch}
+                        >
+                            <SwitchToRemoteIcon />
+                        </button>
+                    ) : null}
+                </div>
             </div>
 
             <ComposerPrimitive.Send
