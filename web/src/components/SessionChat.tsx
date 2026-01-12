@@ -357,7 +357,7 @@ export function SessionChat(props: {
                         navigate({
                             to: '/sessions/$sessionId',
                             params: { sessionId: restoredId },
-                            replace: true
+                            replace: true,
                         })
                     }}
                     isPending={isPending}
