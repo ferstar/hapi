@@ -1,6 +1,17 @@
 #!/usr/bin/env sh
 
 # Run unit checks before pushing (skip CLI integration tests).
+if [[ "$(uname -s)" == "Linux" ]]; then
+    if ! bun -e "import { Database } from 'bun:sqlite'; new Database(':memory:');" >/dev/null 2>&1; then
+        sqlite_dir="${TIANSHU_BUN_SQLITE_DIR:-/tmp/bun-sqlite}"
+        mkdir -p "$sqlite_dir"
+        if [[ -e /usr/lib/libsqlite3.so ]]; then
+            ln -sf /usr/lib/libsqlite3.so "$sqlite_dir/sqlite3"
+            export LD_LIBRARY_PATH="$sqlite_dir:${LD_LIBRARY_PATH:-}"
+        fi
+    fi
+fi
+
 bun typecheck
 cd cli && bun run test:unit
 cd ../server && bun run test
