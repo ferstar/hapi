@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { AssistantRuntimeProvider } from '@assistant-ui/react'
+import { isPermissionModeAllowedForFlavor } from '@hapi/protocol'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ApiClient } from '@/api/client'
 import type { AttachmentMetadata, DecryptedMessage, ModelMode, PermissionMode, Session } from '@/types/api'
 import type { ChatBlock, NormalizedMessage } from '@/chat/types'
@@ -49,7 +50,26 @@ export function SessionChat(props: {
     )
     const blocksByIdRef = useRef<Map<string, ChatBlock>>(new Map())
     const [forceScrollToken, setForceScrollToken] = useState(0)
-    const agentFlavor = props.session.metadata?.flavor ?? null
+    const agentFlavor = useMemo(() => {
+        const flavor = props.session.metadata?.flavor ?? null
+        if (flavor) {
+            return flavor
+        }
+
+        const mode = props.session.permissionMode
+        if (!mode || mode === 'default') {
+            return null
+        }
+
+        if (isPermissionModeAllowedForFlavor(mode, 'codex')) {
+            return 'codex'
+        }
+        if (isPermissionModeAllowedForFlavor(mode, 'claude')) {
+            return 'claude'
+        }
+
+        return null
+    }, [props.session.metadata?.flavor, props.session.permissionMode])
     const {
         abortSession,
         switchSession,
