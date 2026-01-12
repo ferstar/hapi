@@ -1,6 +1,6 @@
 import { getPermissionModeLabel, getPermissionModeTone, isPermissionModeAllowedForFlavor } from '@hapi/protocol'
 import type { PermissionModeTone } from '@hapi/protocol'
-import { useMemo } from 'react'
+import { useMemo, type Ref } from 'react'
 import type { AgentState, ModelMode, PermissionMode } from '@/types/api'
 import { getContextBudgetTokens } from '@/chat/modelConfig'
 import { useTranslation } from '@/lib/use-translation'
@@ -100,6 +100,7 @@ export function StatusBar(props: {
     showSettingsButton?: boolean
     onSettingsToggle?: () => void
     controlsDisabled?: boolean
+    settingsButtonRef?: Ref<HTMLButtonElement>
 }) {
     const { t } = useTranslation()
     const connectionStatus = useMemo(
@@ -153,6 +154,7 @@ export function StatusBar(props: {
                         aria-label={t('composer.settings')}
                         title={t('composer.settings')}
                         onClick={props.onSettingsToggle}
+                        ref={props.settingsButtonRef}
                         disabled={props.controlsDisabled}
                         className={`group flex items-center gap-1 rounded-full px-2 py-1 text-xs transition-colors ${
                             props.controlsDisabled
