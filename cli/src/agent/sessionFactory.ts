@@ -26,6 +26,7 @@ export type SessionBootstrapOptions = {
     tag?: string
     forceNewSession?: boolean
     agentState?: AgentState | null
+    sessionId?: string
 }
 
 export type SessionBootstrapResult = {
@@ -158,6 +159,13 @@ export async function bootstrapSession(options: SessionBootstrapOptions): Promis
     const workingDirectory = options.workingDirectory ?? process.cwd()
     const startedBy = options.startedBy ?? 'terminal'
     const agentState = options.agentState === undefined ? {} : options.agentState
+    const sessionIdOverride = (() => {
+        const fromEnv = process.env.HAPI_SESSION_ID?.trim()
+        if (fromEnv) {
+            return fromEnv
+        }
+        return options.sessionId
+    })()
 
     const api = await ApiClient.create()
 
@@ -187,11 +195,26 @@ export async function bootstrapSession(options: SessionBootstrapOptions): Promis
         worktreeInfo
     })
 
-    const sessionInfo = await api.getOrCreateSession({
-        tag: sessionTag,
-        metadata,
-        state: agentState
-    })
+    let sessionInfo: Session | null = null
+    if (sessionIdOverride) {
+        try {
+            sessionInfo = await api.getSessionById(sessionIdOverride)
+            logger.debug(`[START] Loaded existing session by ID: ${sessionInfo.id}`)
+        } catch (error) {
+            logger.debug(`[START] Failed to load session ${sessionIdOverride}, falling back to tag`, error)
+        }
+    }
+
+    if (!sessionInfo) {
+        sessionInfo = await api.getOrCreateSession({
+            tag: sessionTag,
+            metadata,
+            state: agentState
+        })
+        logger.debug(`Session created: ${sessionInfo.id}`)
+    } else {
+        logger.debug(`[START] Using existing session: ${sessionInfo.id}`)
+    }
 
     const session = api.sessionSyncClient(sessionInfo)
 

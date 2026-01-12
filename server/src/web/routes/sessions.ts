@@ -144,7 +144,8 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
             undefined,
             'simple',
             undefined,
-            resumeSessionId
+            resumeSessionId,
+            sessionResult.sessionId
         )
 
         if (result.type === 'error') {

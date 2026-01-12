@@ -86,13 +86,14 @@ export class RpcGateway {
         yolo?: boolean,
         sessionType?: 'simple' | 'worktree',
         worktreeName?: string,
-        sessionId?: string
+        sessionId?: string,
+        syncSessionId?: string
     ): Promise<{ type: 'success'; sessionId: string } | { type: 'error'; message: string }> {
         try {
             const result = await this.machineRpc(
                 machineId,
                 'spawn-happy-session',
-                { type: 'spawn-in-directory', directory, agent, yolo, sessionType, worktreeName, sessionId }
+                { type: 'spawn-in-directory', directory, agent, yolo, sessionType, worktreeName, sessionId, syncSessionId }
             )
             if (result && typeof result === 'object') {
                 const obj = result as Record<string, unknown>

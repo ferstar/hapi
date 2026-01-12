@@ -241,17 +241,54 @@ export class SyncEngine {
             modelMode?: ModelMode
         }
     ): Promise<void> {
-        const result = await this.rpcGateway.requestSessionConfig(sessionId, config)
-        if (!result || typeof result !== 'object') {
-            throw new Error('Invalid response from session config RPC')
-        }
-        const obj = result as { applied?: { permissionMode?: Session['permissionMode']; modelMode?: Session['modelMode'] } }
-        const applied = obj.applied
-        if (!applied || typeof applied !== 'object') {
-            throw new Error('Missing applied session config')
+        const maxAttempts = 5
+        const baseDelayMs = 200
+        let lastError: unknown = null
+
+        const wait = async (ms: number): Promise<void> => {
+            await new Promise((resolve) => setTimeout(resolve, ms))
         }
 
-        this.sessionCache.applySessionConfig(sessionId, applied)
+        for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+            try {
+                const result = await this.rpcGateway.requestSessionConfig(sessionId, config)
+                if (!result || typeof result !== 'object') {
+                    throw new Error('Invalid response from session config RPC')
+                }
+                const obj = result as { applied?: { permissionMode?: Session['permissionMode']; modelMode?: Session['modelMode'] } }
+                const applied = obj.applied
+                if (!applied || typeof applied !== 'object') {
+                    throw new Error('Missing applied session config')
+                }
+
+                this.sessionCache.applySessionConfig(sessionId, applied)
+                return
+            } catch (error) {
+                lastError = error
+                const message = error instanceof Error ? error.message : String(error)
+                const isTransient = message.includes('RPC handler not registered') || message.includes('RPC socket disconnected')
+
+                if (isTransient && attempt < maxAttempts) {
+                    await wait(baseDelayMs * attempt)
+                    continue
+                }
+
+                if (isTransient) {
+                    console.warn(`[SyncEngine] Session config RPC handler unavailable for ${sessionId}; skipping apply`, {
+                        sessionId,
+                        config,
+                        attempts: attempt
+                    })
+                    return
+                }
+
+                throw error
+            }
+        }
+
+        if (lastError) {
+            throw lastError instanceof Error ? lastError : new Error(String(lastError))
+        }
     }
 
     async spawnSession(
@@ -261,9 +298,10 @@ export class SyncEngine {
         yolo?: boolean,
         sessionType?: 'simple' | 'worktree',
         worktreeName?: string,
-        sessionId?: string
+        sessionId?: string,
+        syncSessionId?: string
     ): Promise<{ type: 'success'; sessionId: string } | { type: 'error'; message: string }> {
-        return await this.rpcGateway.spawnSession(machineId, directory, agent, yolo, sessionType, worktreeName, sessionId)
+        return await this.rpcGateway.spawnSession(machineId, directory, agent, yolo, sessionType, worktreeName, sessionId, syncSessionId)
     }
 
     async checkPathsExist(machineId: string, paths: string[]): Promise<Record<string, boolean>> {
