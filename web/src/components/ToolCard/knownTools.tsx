@@ -161,6 +161,15 @@ export const knownTools: Record<
         subtitle: (opts) => getInputStringAny(opts.input, ['message', 'command']) ?? null,
         minimal: true,
     },
+    CodexPermission: {
+        icon: () => <QuestionIcon className={DEFAULT_ICON_CLASS} />,
+        title: (opts) => {
+            const tool = getInputStringAny(opts.input, ['tool'])
+            return tool ? `Permission: ${tool}` : 'Permission request'
+        },
+        subtitle: (opts) => getInputStringAny(opts.input, ['command']) ?? null,
+        minimal: true,
+    },
     shell_command: {
         icon: () => <TerminalIcon className={DEFAULT_ICON_CLASS} />,
         title: (opts) => opts.description ?? 'Terminal',
