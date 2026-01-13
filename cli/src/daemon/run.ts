@@ -329,11 +329,13 @@ export async function startDaemon(): Promise<void> {
                     }
                 }
 
-                if (syncSessionId) {
+                if (syncSessionId && sessionId) {
                     extraEnv = {
                         ...extraEnv,
                         HAPI_SESSION_ID: syncSessionId,
                     }
+                } else if (syncSessionId) {
+                    logger.debug('[DAEMON RUN] Ignoring syncSessionId without resume sessionId')
                 }
 
                 if (worktreeInfo) {

@@ -24,8 +24,7 @@ export class RpcGateway {
     constructor(
         private readonly io: Server,
         private readonly rpcRegistry: RpcRegistry
-    ) {
-    }
+    ) {}
 
     async approvePermission(
         sessionId: string,
@@ -41,7 +40,7 @@ export class RpcGateway {
             mode,
             allowTools,
             decision,
-            answers
+            answers,
         })
     }
 
@@ -53,7 +52,7 @@ export class RpcGateway {
         await this.sessionRpc(sessionId, 'permission', {
             id: requestId,
             approved: false,
-            decision
+            decision,
         })
     }
 
@@ -90,11 +89,19 @@ export class RpcGateway {
         syncSessionId?: string
     ): Promise<{ type: 'success'; sessionId: string } | { type: 'error'; message: string }> {
         try {
-            const result = await this.machineRpc(
-                machineId,
-                'spawn-happy-session',
-                { type: 'spawn-in-directory', directory, agent, yolo, sessionType, worktreeName, sessionId, syncSessionId }
-            )
+            if (syncSessionId && !sessionId) {
+                return { type: 'error', message: 'syncSessionId requires a resume sessionId' }
+            }
+            const result = await this.machineRpc(machineId, 'spawn-happy-session', {
+                type: 'spawn-in-directory',
+                directory,
+                agent,
+                yolo,
+                sessionType,
+                worktreeName,
+                sessionId,
+                syncSessionId,
+            })
             if (result && typeof result === 'object') {
                 const obj = result as Record<string, unknown>
                 if (obj.type === 'success' && typeof obj.sessionId === 'string') {
@@ -111,7 +118,7 @@ export class RpcGateway {
     }
 
     async checkPathsExist(machineId: string, paths: string[]): Promise<Record<string, boolean>> {
-        const result = await this.machineRpc(machineId, 'path-exists', { paths }) as RpcPathExistsResponse | unknown
+        const result = (await this.machineRpc(machineId, 'path-exists', { paths })) as RpcPathExistsResponse | unknown
         if (!result || typeof result !== 'object') {
             throw new Error('Unexpected path-exists result')
         }
@@ -129,31 +136,40 @@ export class RpcGateway {
     }
 
     async getGitStatus(sessionId: string, cwd?: string): Promise<RpcCommandResponse> {
-        return await this.sessionRpc(sessionId, 'git-status', { cwd }) as RpcCommandResponse
+        return (await this.sessionRpc(sessionId, 'git-status', { cwd })) as RpcCommandResponse
     }
 
-    async getGitDiffNumstat(sessionId: string, options: { cwd?: string; staged?: boolean }): Promise<RpcCommandResponse> {
-        return await this.sessionRpc(sessionId, 'git-diff-numstat', options) as RpcCommandResponse
+    async getGitDiffNumstat(
+        sessionId: string,
+        options: { cwd?: string; staged?: boolean }
+    ): Promise<RpcCommandResponse> {
+        return (await this.sessionRpc(sessionId, 'git-diff-numstat', options)) as RpcCommandResponse
     }
 
-    async getGitDiffFile(sessionId: string, options: { cwd?: string; filePath: string; staged?: boolean }): Promise<RpcCommandResponse> {
-        return await this.sessionRpc(sessionId, 'git-diff-file', options) as RpcCommandResponse
+    async getGitDiffFile(
+        sessionId: string,
+        options: { cwd?: string; filePath: string; staged?: boolean }
+    ): Promise<RpcCommandResponse> {
+        return (await this.sessionRpc(sessionId, 'git-diff-file', options)) as RpcCommandResponse
     }
 
     async readSessionFile(sessionId: string, path: string): Promise<RpcReadFileResponse> {
-        return await this.sessionRpc(sessionId, 'readFile', { path }) as RpcReadFileResponse
+        return (await this.sessionRpc(sessionId, 'readFile', { path })) as RpcReadFileResponse
     }
 
     async runRipgrep(sessionId: string, args: string[], cwd?: string): Promise<RpcCommandResponse> {
-        return await this.sessionRpc(sessionId, 'ripgrep', { args, cwd }) as RpcCommandResponse
+        return (await this.sessionRpc(sessionId, 'ripgrep', { args, cwd })) as RpcCommandResponse
     }
 
-    async listSlashCommands(sessionId: string, agent: string): Promise<{
+    async listSlashCommands(
+        sessionId: string,
+        agent: string
+    ): Promise<{
         success: boolean
         commands?: Array<{ name: string; description?: string; source: 'builtin' | 'user' }>
         error?: string
     }> {
-        return await this.sessionRpc(sessionId, 'listSlashCommands', { agent }) as {
+        return (await this.sessionRpc(sessionId, 'listSlashCommands', { agent })) as {
             success: boolean
             commands?: Array<{ name: string; description?: string; source: 'builtin' | 'user' }>
             error?: string
@@ -179,10 +195,10 @@ export class RpcGateway {
             throw new Error(`RPC socket disconnected: ${method}`)
         }
 
-        const response = await socket.timeout(30_000).emitWithAck('rpc-request', {
+        const response = (await socket.timeout(30_000).emitWithAck('rpc-request', {
             method,
-            params: JSON.stringify(params)
-        }) as unknown
+            params: JSON.stringify(params),
+        })) as unknown
 
         if (typeof response !== 'string') {
             return response
