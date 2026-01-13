@@ -1,34 +1,52 @@
 /**
  * Permission Handler for Codex tool approval integration
- * 
+ *
  * Handles tool permission requests and responses for Codex sessions.
  * Simpler than Claude's permission handler since we get tool IDs directly.
  */
 
-import { logger } from "@/ui/logger";
-import { ApiSessionClient } from "@/api/apiSession";
+import { logger } from '@/ui/logger'
+import { ApiSessionClient } from '@/api/apiSession'
 import {
     BasePermissionHandler,
     type PendingPermissionRequest,
-    type PermissionCompletion
-} from "@/modules/common/permission/BasePermissionHandler";
+    type PermissionCompletion,
+} from '@/modules/common/permission/BasePermissionHandler'
 
 interface PermissionResponse {
-    id: string;
-    approved: boolean;
-    decision?: 'approved' | 'approved_for_session' | 'denied' | 'abort';
-    reason?: string;
+    id: string
+    approved: boolean
+    decision?: 'approved' | 'approved_for_session' | 'denied' | 'abort'
+    reason?: string
 }
 
 interface PermissionResult {
-    decision: 'approved' | 'approved_for_session' | 'denied' | 'abort';
-    reason?: string;
+    decision: 'approved' | 'approved_for_session' | 'denied' | 'abort'
+    reason?: string
+}
+
+type CodexPermissionHandlerOptions = {
+    onRequest?: (request: { id: string; toolName: string; input: unknown }) => void
+    onComplete?: (result: {
+        id: string
+        toolName: string
+        input: unknown
+        approved: boolean
+        decision: PermissionResult['decision']
+        reason?: string
+    }) => void
 }
 
 export class CodexPermissionHandler extends BasePermissionHandler<PermissionResponse, PermissionResult> {
+    constructor(
+        session: ApiSessionClient,
+        private readonly options?: CodexPermissionHandlerOptions
+    ) {
+        super(session)
+    }
 
-    constructor(session: ApiSessionClient) {
-        super(session);
+    protected override onRequestRegistered(id: string, toolName: string, input: unknown): void {
+        this.options?.onRequest?.({ id, toolName, input })
     }
 
     /**
@@ -38,14 +56,10 @@ export class CodexPermissionHandler extends BasePermissionHandler<PermissionResp
      * @param input - The input parameters for the tool
      * @returns Promise resolving to permission result
      */
-    async handleToolCall(
-        toolCallId: string,
-        toolName: string,
-        input: unknown
-    ): Promise<PermissionResult> {
+    async handleToolCall(toolCallId: string, toolName: string, input: unknown): Promise<PermissionResult> {
         return new Promise<PermissionResult>((resolve, reject) => {
             // Store the pending request
-            this.addPendingRequest(toolCallId, toolName, input, { resolve, reject });
+            this.addPendingRequest(toolCallId, toolName, input, { resolve, reject })
 
             // Send push notification
             // this.session.api.push().sendToAllDevices(
@@ -59,8 +73,8 @@ export class CodexPermissionHandler extends BasePermissionHandler<PermissionResp
             //     }
             // );
 
-            logger.debug(`[Codex] Permission request sent for tool: ${toolName} (${toolCallId})`);
-        });
+            logger.debug(`[Codex] Permission request sent for tool: ${toolName} (${toolCallId})`)
+        })
     }
 
     /**
@@ -70,29 +84,38 @@ export class CodexPermissionHandler extends BasePermissionHandler<PermissionResp
         response: PermissionResponse,
         pending: PendingPermissionRequest<PermissionResult>
     ): PermissionCompletion {
-        const reason = typeof response.reason === 'string' ? response.reason : undefined;
+        const reason = typeof response.reason === 'string' ? response.reason : undefined
         const result: PermissionResult = response.approved
             ? {
-                decision: response.decision === 'approved_for_session' ? 'approved_for_session' : 'approved',
-                reason
-            }
+                  decision: response.decision === 'approved_for_session' ? 'approved_for_session' : 'approved',
+                  reason,
+              }
             : {
-                decision: response.decision === 'denied' ? 'denied' : 'abort',
-                reason
-            };
+                  decision: response.decision === 'denied' ? 'denied' : 'abort',
+                  reason,
+              }
 
-        pending.resolve(result);
-        logger.debug(`[Codex] Permission ${response.approved ? 'approved' : 'denied'} for ${pending.toolName}`);
+        pending.resolve(result)
+        logger.debug(`[Codex] Permission ${response.approved ? 'approved' : 'denied'} for ${pending.toolName}`)
+
+        this.options?.onComplete?.({
+            id: response.id,
+            toolName: pending.toolName,
+            input: pending.input,
+            approved: response.approved,
+            decision: result.decision,
+            reason: result.reason,
+        })
 
         return {
             status: response.approved ? 'approved' : 'denied',
             decision: result.decision,
-            reason: result.reason
-        };
+            reason: result.reason,
+        }
     }
 
     protected handleMissingPendingResponse(_response: PermissionResponse): void {
-        logger.debug('[Codex] Permission request not found or already resolved');
+        logger.debug('[Codex] Permission request not found or already resolved')
     }
 
     /**
@@ -101,9 +124,9 @@ export class CodexPermissionHandler extends BasePermissionHandler<PermissionResp
     reset(reason?: string): void {
         this.cancelPendingRequests({
             completedReason: reason ?? 'Session reset',
-            rejectMessage: reason ?? 'Session reset'
-        });
+            rejectMessage: reason ?? 'Session reset',
+        })
 
-        logger.debug('[Codex] Permission handler reset');
+        logger.debug('[Codex] Permission handler reset')
     }
 }
