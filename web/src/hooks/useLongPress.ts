@@ -25,6 +25,8 @@ export function useLongPress(options: UseLongPressOptions): UseLongPressHandlers
     const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const isLongPressRef = useRef(false)
     const touchMoved = useRef(false)
+    const ignoreMouseRef = useRef(false)
+    const ignoreMouseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const pressPointRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 })
 
     const clearTimer = useCallback(() => {
@@ -51,6 +53,17 @@ export function useLongPress(options: UseLongPressOptions): UseLongPressHandlers
         [disabled, clearTimer, onLongPress, threshold]
     )
 
+    const startIgnoreMouse = useCallback(() => {
+        ignoreMouseRef.current = true
+        if (ignoreMouseTimerRef.current) {
+            clearTimeout(ignoreMouseTimerRef.current)
+        }
+        ignoreMouseTimerRef.current = setTimeout(() => {
+            ignoreMouseRef.current = false
+            ignoreMouseTimerRef.current = null
+        }, 700)
+    }, [])
+
     const handleEnd = useCallback(
         (shouldTriggerClick: boolean) => {
             clearTimer()
@@ -67,6 +80,7 @@ export function useLongPress(options: UseLongPressOptions): UseLongPressHandlers
 
     const onMouseDown = useCallback<React.MouseEventHandler>(
         (e) => {
+            if (ignoreMouseRef.current) return
             if (e.button !== 0) return
             startTimer(e.clientX, e.clientY)
         },
@@ -74,29 +88,33 @@ export function useLongPress(options: UseLongPressOptions): UseLongPressHandlers
     )
 
     const onMouseUp = useCallback<React.MouseEventHandler>(() => {
+        if (ignoreMouseRef.current) return
         handleEnd(!isLongPressRef.current)
     }, [handleEnd])
 
     const onMouseLeave = useCallback<React.MouseEventHandler>(() => {
+        if (ignoreMouseRef.current) return
         handleEnd(false)
     }, [handleEnd])
 
     const onTouchStart = useCallback<React.TouchEventHandler>(
         (e) => {
+            startIgnoreMouse()
             const touch = e.touches[0]
             startTimer(touch.clientX, touch.clientY)
         },
-        [startTimer]
+        [startIgnoreMouse, startTimer]
     )
 
     const onTouchEnd = useCallback<React.TouchEventHandler>(
         (e) => {
+            startIgnoreMouse()
             if (isLongPressRef.current) {
                 e.preventDefault()
             }
             handleEnd(!isLongPressRef.current)
         },
-        [handleEnd]
+        [handleEnd, startIgnoreMouse]
     )
 
     const onTouchMove = useCallback<React.TouchEventHandler>(() => {
