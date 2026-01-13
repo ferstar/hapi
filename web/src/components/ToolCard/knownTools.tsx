@@ -173,7 +173,7 @@ export const knownTools: Record<
             const tool = getInputStringAny(opts.input, ['tool'])
             return tool ? `Permission: ${tool}` : 'Permission request'
         },
-        subtitle: (opts) => getInputStringAny(opts.input, ['command']) ?? null,
+        subtitle: (opts) => getInputStringAny(opts.input, ['message', 'command']) ?? null,
         minimal: true
     },
     shell_command: {
