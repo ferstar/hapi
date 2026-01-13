@@ -20,7 +20,6 @@ export const codexCommand: CommandDefinition = {
                 resumeSessionId?: string
                 forceNewSession?: boolean
                 sessionTag?: string
-                resumeSessionId?: string
             } = {}
             const unknownArgs: string[] = []
 
