@@ -194,38 +194,6 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
 
         const getPermissionDetails = (id: string) => permissionDetails.get(id) ?? {}
 
-        const normalizeCommand = (value: unknown): string | undefined => {
-            if (typeof value === 'string') {
-                const trimmed = value.trim()
-                return trimmed.length > 0 ? trimmed : undefined
-            }
-            if (Array.isArray(value)) {
-                const joined = value.filter((part): part is string => typeof part === 'string').join(' ')
-                return joined.length > 0 ? joined : undefined
-            }
-            return undefined
-        }
-
-        const normalizeCwd = (value: unknown): string | undefined => {
-            if (typeof value !== 'string') return undefined
-            const trimmed = value.trim()
-            return trimmed.length > 0 ? trimmed : undefined
-        }
-
-        const permissionDetails = new Map<string, { command?: string; cwd?: string }>()
-
-        const recordPermissionDetails = (id: string, command?: string, cwd?: string) => {
-            const existing = permissionDetails.get(id) ?? {}
-            const next = {
-                command: command ?? existing.command,
-                cwd: cwd ?? existing.cwd,
-            }
-            permissionDetails.set(id, next)
-            return next
-        }
-
-        const getPermissionDetails = (id: string) => permissionDetails.get(id) ?? {}
-
         function readResumeFileContent(resumeFile: string): { content: string; truncated: boolean } | null {
             try {
                 const stat = fs.statSync(resumeFile)
