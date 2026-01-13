@@ -25,6 +25,15 @@ export const codexCommand: CommandDefinition = {
 
             for (let i = 0; i < commandArgs.length; i++) {
                 const arg = commandArgs[i]
+                if (i === 0 && arg === 'resume') {
+                    const candidate = commandArgs[i + 1]
+                    if (!candidate || candidate.startsWith('-')) {
+                        throw new Error('resume requires a session id')
+                    }
+                    options.resumeSessionId = candidate
+                    i += 1
+                    continue
+                }
                 if (arg === '--started-by') {
                     options.startedBy = commandArgs[++i] as 'daemon' | 'terminal'
                 } else if (arg === '--resume') {

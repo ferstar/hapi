@@ -122,6 +122,7 @@ export async function runCodex(opts: {
             resumeSessionId: opts.resumeSessionId,
             startedBy,
             permissionMode: currentPermissionMode,
+            resumeSessionId: opts.resumeSessionId,
             onModeChange: createModeChangeHandler(session),
             onSessionReady: (instance) => {
                 sessionWrapperRef.current = instance;
