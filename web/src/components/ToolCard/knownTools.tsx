@@ -1,6 +1,18 @@
 import type { ReactNode } from 'react'
 import type { SessionMetadataSummary } from '@/types/api'
-import { BulbIcon, ClipboardIcon, EyeIcon, FileDiffIcon, GlobeIcon, PuzzleIcon, QuestionIcon, RocketIcon, SearchIcon, TerminalIcon, WrenchIcon } from '@/components/ToolCard/icons'
+import {
+    BulbIcon,
+    ClipboardIcon,
+    EyeIcon,
+    FileDiffIcon,
+    GlobeIcon,
+    PuzzleIcon,
+    QuestionIcon,
+    RocketIcon,
+    SearchIcon,
+    TerminalIcon,
+    WrenchIcon,
+} from '@/components/ToolCard/icons'
 import { basename, resolveDisplayPath } from '@/utils/path'
 
 const DEFAULT_ICON_CLASS = 'h-3.5 w-3.5'
@@ -63,12 +75,15 @@ type ToolOpts = {
     metadata: SessionMetadataSummary | null
 }
 
-export const knownTools: Record<string, {
-    icon: (opts: ToolOpts) => ReactNode
-    title: (opts: ToolOpts) => string
-    subtitle?: (opts: ToolOpts) => string | null
-    minimal?: boolean | ((opts: ToolOpts) => boolean)
-}> = {
+export const knownTools: Record<
+    string,
+    {
+        icon: (opts: ToolOpts) => ReactNode
+        title: (opts: ToolOpts) => string
+        subtitle?: (opts: ToolOpts) => string | null
+        minimal?: boolean | ((opts: ToolOpts) => boolean)
+    }
+> = {
     Task: {
         icon: () => <RocketIcon className={DEFAULT_ICON_CLASS} />,
         title: (opts) => {
@@ -79,18 +94,18 @@ export const knownTools: Record<string, {
             const prompt = getInputStringAny(opts.input, ['prompt'])
             return prompt ? truncate(prompt, 120) : null
         },
-        minimal: (opts) => opts.childrenCount === 0
+        minimal: (opts) => opts.childrenCount === 0,
     },
     Bash: {
         icon: () => <TerminalIcon className={DEFAULT_ICON_CLASS} />,
         title: (opts) => opts.description ?? 'Terminal',
         subtitle: (opts) => getInputStringAny(opts.input, ['command', 'cmd']),
-        minimal: true
+        minimal: true,
     },
     Glob: {
         icon: () => <SearchIcon className={DEFAULT_ICON_CLASS} />,
         title: (opts) => getInputStringAny(opts.input, ['pattern']) ?? 'Search files',
-        minimal: true
+        minimal: true,
     },
     Grep: {
         icon: () => <EyeIcon className={DEFAULT_ICON_CLASS} />,
@@ -98,7 +113,7 @@ export const knownTools: Record<string, {
             const pattern = getInputStringAny(opts.input, ['pattern'])
             return pattern ? `grep(pattern: ${pattern})` : 'Search content'
         },
-        minimal: true
+        minimal: true,
     },
     LS: {
         icon: () => <SearchIcon className={DEFAULT_ICON_CLASS} />,
@@ -106,7 +121,7 @@ export const knownTools: Record<string, {
             const path = getInputStringAny(opts.input, ['path'])
             return path ? resolveDisplayPath(path, opts.metadata) : 'List files'
         },
-        minimal: true
+        minimal: true,
     },
     CodexBash: {
         icon: (opts) => {
@@ -135,7 +150,22 @@ export const knownTools: Record<string, {
             }
             return null
         },
-        minimal: true
+        minimal: true,
+    },
+    CodexPermission: {
+        icon: () => <QuestionIcon className={DEFAULT_ICON_CLASS} />,
+        title: (opts) => {
+            const tool = getInputStringAny(opts.input, ['tool'])
+            return tool ? `Permission: ${tool}` : 'Permission request'
+        },
+        subtitle: (opts) => getInputStringAny(opts.input, ['message', 'command']) ?? null,
+        minimal: true,
+    },
+    shell_command: {
+        icon: () => <TerminalIcon className={DEFAULT_ICON_CLASS} />,
+        title: (opts) => opts.description ?? 'Terminal',
+        subtitle: (opts) => getInputStringAny(opts.input, ['command', 'cmd']),
+        minimal: true,
     },
     Read: {
         icon: () => <EyeIcon className={DEFAULT_ICON_CLASS} />,
@@ -143,7 +173,7 @@ export const knownTools: Record<string, {
             const file = getInputStringAny(opts.input, ['file_path', 'path', 'file'])
             return file ? resolveDisplayPath(file, opts.metadata) : 'Read file'
         },
-        minimal: true
+        minimal: true,
     },
     Edit: {
         icon: () => <FileDiffIcon className={DEFAULT_ICON_CLASS} />,
@@ -151,7 +181,7 @@ export const knownTools: Record<string, {
             const file = getInputStringAny(opts.input, ['file_path', 'path'])
             return file ? resolveDisplayPath(file, opts.metadata) : 'Edit file'
         },
-        minimal: true
+        minimal: true,
     },
     MultiEdit: {
         icon: () => <FileDiffIcon className={DEFAULT_ICON_CLASS} />,
@@ -163,7 +193,7 @@ export const knownTools: Record<string, {
             const path = resolveDisplayPath(file, opts.metadata)
             return count > 1 ? `${path} (${count} edits)` : path
         },
-        minimal: true
+        minimal: true,
     },
     Write: {
         icon: () => <FileDiffIcon className={DEFAULT_ICON_CLASS} />,
@@ -177,7 +207,7 @@ export const knownTools: Record<string, {
             const lines = countLines(content)
             return lines > 1 ? `${lines} lines` : `${content.length} chars`
         },
-        minimal: true
+        minimal: true,
     },
     WebFetch: {
         icon: () => <GlobeIcon className={DEFAULT_ICON_CLASS} />,
@@ -195,7 +225,7 @@ export const knownTools: Record<string, {
             if (!url) return null
             return url
         },
-        minimal: true
+        minimal: true,
     },
     WebSearch: {
         icon: () => <GlobeIcon className={DEFAULT_ICON_CLASS} />,
@@ -204,7 +234,7 @@ export const knownTools: Record<string, {
             const query = getInputStringAny(opts.input, ['query'])
             return query ? truncate(query, 80) : null
         },
-        minimal: true
+        minimal: true,
     },
     NotebookRead: {
         icon: () => <EyeIcon className={DEFAULT_ICON_CLASS} />,
@@ -212,7 +242,7 @@ export const knownTools: Record<string, {
             const path = getInputStringAny(opts.input, ['notebook_path'])
             return path ? resolveDisplayPath(path, opts.metadata) : 'Read notebook'
         },
-        minimal: true
+        minimal: true,
     },
     NotebookEdit: {
         icon: () => <FileDiffIcon className={DEFAULT_ICON_CLASS} />,
@@ -224,7 +254,7 @@ export const knownTools: Record<string, {
             const mode = getInputStringAny(opts.input, ['edit_mode'])
             return mode ? `mode: ${mode}` : null
         },
-        minimal: false
+        minimal: false,
     },
     TodoWrite: {
         icon: () => <BulbIcon className={DEFAULT_ICON_CLASS} />,
@@ -242,12 +272,12 @@ export const knownTools: Record<string, {
             const newTodos = isObject(opts.result) && Array.isArray(opts.result.newTodos) ? opts.result.newTodos : null
             if (newTodos && newTodos.length > 0) return false
             return true
-        }
+        },
     },
     CodexReasoning: {
         icon: () => <BulbIcon className={DEFAULT_ICON_CLASS} />,
         title: (opts) => getInputStringAny(opts.input, ['title']) ?? 'Reasoning',
-        minimal: true
+        minimal: true,
     },
     CodexPatch: {
         icon: () => <FileDiffIcon className={DEFAULT_ICON_CLASS} />,
@@ -263,7 +293,7 @@ export const knownTools: Record<string, {
             }
             return null
         },
-        minimal: true
+        minimal: true,
     },
     CodexDiff: {
         icon: () => <FileDiffIcon className={DEFAULT_ICON_CLASS} />,
@@ -284,27 +314,25 @@ export const knownTools: Record<string, {
             const unified = getInputStringAny(opts.input, ['unified_diff'])
             if (!unified) return true
             return unified.length >= 2000 || countLines(unified) >= 50
-        }
+        },
     },
     ExitPlanMode: {
         icon: () => <ClipboardIcon className={DEFAULT_ICON_CLASS} />,
         title: () => 'Plan proposal',
-        minimal: false
+        minimal: false,
     },
     exit_plan_mode: {
         icon: () => <ClipboardIcon className={DEFAULT_ICON_CLASS} />,
         title: () => 'Plan proposal',
-        minimal: false
+        minimal: false,
     },
     AskUserQuestion: {
         icon: () => <QuestionIcon className={DEFAULT_ICON_CLASS} />,
         title: (opts) => {
-            const questions = isObject(opts.input) && Array.isArray(opts.input.questions)
-                ? opts.input.questions : []
+            const questions = isObject(opts.input) && Array.isArray(opts.input.questions) ? opts.input.questions : []
             const count = questions.length
             const first = questions[0] ?? null
-            const header = isObject(first) && typeof first.header === 'string'
-                ? first.header.trim() : ''
+            const header = isObject(first) && typeof first.header === 'string' ? first.header.trim() : ''
 
             if (count > 1) {
                 return `${count} Questions`
@@ -312,29 +340,25 @@ export const knownTools: Record<string, {
             return header.length > 0 ? header : 'Question'
         },
         subtitle: (opts) => {
-            const questions = isObject(opts.input) && Array.isArray(opts.input.questions)
-                ? opts.input.questions : []
+            const questions = isObject(opts.input) && Array.isArray(opts.input.questions) ? opts.input.questions : []
             const count = questions.length
             const first = questions[0] ?? null
-            const question = isObject(first) && typeof first.question === 'string'
-                ? first.question.trim() : ''
+            const question = isObject(first) && typeof first.question === 'string' ? first.question.trim() : ''
 
             if (count > 1 && question.length > 0) {
                 return truncate(question, 100) + ` (+${count - 1} more)`
             }
             return question.length > 0 ? truncate(question, 120) : null
         },
-        minimal: true
+        minimal: true,
     },
     ask_user_question: {
         icon: () => <QuestionIcon className={DEFAULT_ICON_CLASS} />,
         title: (opts) => {
-            const questions = isObject(opts.input) && Array.isArray(opts.input.questions)
-                ? opts.input.questions : []
+            const questions = isObject(opts.input) && Array.isArray(opts.input.questions) ? opts.input.questions : []
             const count = questions.length
             const first = questions[0] ?? null
-            const header = isObject(first) && typeof first.header === 'string'
-                ? first.header.trim() : ''
+            const header = isObject(first) && typeof first.header === 'string' ? first.header.trim() : ''
 
             if (count > 1) {
                 return `${count} Questions`
@@ -342,29 +366,29 @@ export const knownTools: Record<string, {
             return header.length > 0 ? header : 'Question'
         },
         subtitle: (opts) => {
-            const questions = isObject(opts.input) && Array.isArray(opts.input.questions)
-                ? opts.input.questions : []
+            const questions = isObject(opts.input) && Array.isArray(opts.input.questions) ? opts.input.questions : []
             const count = questions.length
             const first = questions[0] ?? null
-            const question = isObject(first) && typeof first.question === 'string'
-                ? first.question.trim() : ''
+            const question = isObject(first) && typeof first.question === 'string' ? first.question.trim() : ''
 
             if (count > 1 && question.length > 0) {
                 return truncate(question, 100) + ` (+${count - 1} more)`
             }
             return question.length > 0 ? truncate(question, 120) : null
         },
-        minimal: true
-    }
+        minimal: true,
+    },
 }
 
-export function getToolPresentation(opts: Omit<ToolOpts, 'metadata'> & { metadata: SessionMetadataSummary | null }): ToolPresentation {
+export function getToolPresentation(
+    opts: Omit<ToolOpts, 'metadata'> & { metadata: SessionMetadataSummary | null }
+): ToolPresentation {
     if (opts.toolName.startsWith('mcp__')) {
         return {
             icon: <PuzzleIcon className={DEFAULT_ICON_CLASS} />,
             title: formatMCPTitle(opts.toolName),
             subtitle: null,
-            minimal: true
+            minimal: true,
         }
     }
 
@@ -375,7 +399,7 @@ export function getToolPresentation(opts: Omit<ToolOpts, 'metadata'> & { metadat
             icon: known.icon(opts),
             title: known.title(opts),
             subtitle: known.subtitle ? known.subtitle(opts) : null,
-            minimal
+            minimal,
         }
     }
 
@@ -391,6 +415,6 @@ export function getToolPresentation(opts: Omit<ToolOpts, 'metadata'> & { metadat
         icon: <WrenchIcon className={DEFAULT_ICON_CLASS} />,
         title: opts.toolName,
         subtitle: subtitle ? truncate(subtitle, 80) : null,
-        minimal: true
+        minimal: true,
     }
 }
