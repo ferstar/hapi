@@ -165,7 +165,7 @@ export const knownTools: Record<
         icon: () => <TerminalIcon className={DEFAULT_ICON_CLASS} />,
         title: (opts) => opts.description ?? 'Terminal',
         subtitle: (opts) => getInputStringAny(opts.input, ['command', 'cmd']),
-        minimal: true
+        minimal: true,
     },
     Read: {
         icon: () => <EyeIcon className={DEFAULT_ICON_CLASS} />,
