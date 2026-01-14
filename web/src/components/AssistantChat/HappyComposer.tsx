@@ -621,7 +621,7 @@ export function HappyComposer(props: {
                         controlsDisabled={controlsDisabled}
                     />
 
-                    <div className="relative z-10 overflow-visible rounded-[20px] bg-[var(--app-secondary-bg)]">
+                    <div className="relative z-app-sticky overflow-visible rounded-[20px] bg-[var(--app-secondary-bg)]">
                         <div className="flex items-start px-4 py-3">
                             <ComposerPrimitive.Input
                                 ref={textareaRef}

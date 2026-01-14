@@ -18,12 +18,10 @@ export function InstallPrompt() {
     if (canInstallIOS) {
         if (showIOSGuide) {
             return (
-                <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center">
+                <div className="fixed inset-0 bg-black/50 z-app-overlay flex items-end justify-center">
                     <div className="w-full max-w-lg bg-[var(--app-bg)] rounded-t-2xl p-5 pb-8 space-y-4 animate-slide-up">
                         <div className="flex items-center justify-between">
-                            <h3 className="text-base font-semibold text-[var(--app-fg)]">
-                                {t('install.title')}
-                            </h3>
+                            <h3 className="text-base font-semibold text-[var(--app-fg)]">{t('install.title')}</h3>
                             <button
                                 onClick={() => setShowIOSGuide(false)}
                                 className="p-1 -mr-1 text-[var(--app-hint)] active:opacity-60"
@@ -40,7 +38,8 @@ export function InstallPrompt() {
                                 </div>
                                 <div className="flex-1 pt-1">
                                     <p className="text-sm text-[var(--app-fg)]">
-                                        Tap the <ShareIcon className="inline w-5 h-5 align-text-bottom" /> Share button in the toolbar
+                                        Tap the <ShareIcon className="inline w-5 h-5 align-text-bottom" /> Share button
+                                        in the toolbar
                                     </p>
                                 </div>
                             </div>
@@ -51,7 +50,9 @@ export function InstallPrompt() {
                                 </div>
                                 <div className="flex-1 pt-1">
                                     <p className="text-sm text-[var(--app-fg)]">
-                                        Scroll down and tap <PlusCircleIcon className="inline w-5 h-5 align-text-bottom" /> <strong>Add to Home Screen</strong>
+                                        Scroll down and tap{' '}
+                                        <PlusCircleIcon className="inline w-5 h-5 align-text-bottom" />{' '}
+                                        <strong>Add to Home Screen</strong>
                                     </p>
                                 </div>
                             </div>
@@ -83,15 +84,11 @@ export function InstallPrompt() {
         }
 
         return (
-            <div className="fixed bottom-4 left-4 right-4 bg-[var(--app-secondary-bg)] border border-[var(--app-border)] rounded-lg p-4 shadow-lg z-50">
+            <div className="fixed bottom-4 left-4 right-4 bg-[var(--app-secondary-bg)] border border-[var(--app-border)] rounded-lg p-4 shadow-lg z-app-modal">
                 <div className="flex items-center justify-between gap-3">
                     <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-[var(--app-fg)]">
-                            {t('install.title')}
-                        </p>
-                        <p className="text-xs text-[var(--app-hint)] mt-0.5">
-                            {t('install.description')}
-                        </p>
+                        <p className="text-sm font-medium text-[var(--app-fg)]">{t('install.title')}</p>
+                        <p className="text-xs text-[var(--app-hint)] mt-0.5">{t('install.description')}</p>
                     </div>
                     <button
                         onClick={() => {
@@ -131,15 +128,11 @@ export function InstallPrompt() {
     }
 
     return (
-        <div className="fixed bottom-4 left-4 right-4 bg-[var(--app-secondary-bg)] border border-[var(--app-border)] rounded-lg p-4 shadow-lg z-50">
+        <div className="fixed bottom-4 left-4 right-4 bg-[var(--app-secondary-bg)] border border-[var(--app-border)] rounded-lg p-4 shadow-lg z-app-modal">
             <div className="flex items-center justify-between gap-3">
                 <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-[var(--app-fg)]">
-                        {t('install.title')}
-                    </p>
-                    <p className="text-xs text-[var(--app-hint)] mt-0.5">
-                        {t('install.description')}
-                    </p>
+                    <p className="text-sm font-medium text-[var(--app-fg)]">{t('install.title')}</p>
+                    <p className="text-xs text-[var(--app-hint)] mt-0.5">{t('install.description')}</p>
                 </div>
                 <button
                     onClick={handleInstall}

@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 @config "../tailwind.config.ts";
 
 :root {
@@ -36,11 +36,11 @@
     --app-diff-removed-text: #24292e;
 
     /* Git status colors (light) */
-    --app-git-staged-color: #34C759;
-    --app-git-unstaged-color: #FF9500;
-    --app-git-deleted-color: #FF3B30;
+    --app-git-staged-color: #34c759;
+    --app-git-unstaged-color: #ff9500;
+    --app-git-deleted-color: #ff3b30;
     --app-git-renamed-color: #2563eb;
-    --app-git-untracked-color: #8E8E93;
+    --app-git-untracked-color: #8e8e93;
 
     /* Badge colors (light) */
     --app-badge-warning-bg: rgba(245, 158, 11, 0.2);
@@ -52,9 +52,17 @@
     --app-badge-error-bg: rgba(239, 68, 68, 0.18);
     --app-badge-error-text: #b91c1c;
     --app-badge-error-border: rgba(239, 68, 68, 0.3);
+
+    /* Z-index scale */
+    --app-z-sticky: 10;
+    --app-z-banner: 20;
+    --app-z-menu: 30;
+    --app-z-overlay: 40;
+    --app-z-modal: 50;
+    --app-z-toast: 60;
 }
 
-[data-theme="dark"] {
+[data-theme='dark'] {
     /* Primary colors - override fallbacks for non-Telegram browsers */
     --app-bg: var(--tg-theme-bg-color, #1c1c1e);
     --app-fg: var(--tg-theme-text-color, #ffffff);
@@ -62,9 +70,9 @@
     --app-link: var(--tg-theme-link-color, #ffffff);
     --app-button: var(--tg-theme-button-color, #ffffff);
     --app-button-text: var(--tg-theme-button-text-color, #111827);
-    --app-banner-bg: var(--tg-theme-button-color, #3A3A3C);
+    --app-banner-bg: var(--tg-theme-button-color, #3a3a3c);
     --app-banner-text: var(--tg-theme-button-text-color, #ffffff);
-    --app-secondary-bg: var(--tg-theme-secondary-bg-color, #2C2C2E);
+    --app-secondary-bg: var(--tg-theme-secondary-bg-color, #2c2c2e);
 
     --app-border: rgba(255, 255, 255, 0.1);
     --app-divider: rgba(255, 255, 255, 0.08);
@@ -123,6 +131,27 @@ body {
     height: 100%;
 }
 
+@layer utilities {
+    .z-app-sticky {
+        z-index: var(--app-z-sticky);
+    }
+    .z-app-banner {
+        z-index: var(--app-z-banner);
+    }
+    .z-app-menu {
+        z-index: var(--app-z-menu);
+    }
+    .z-app-overlay {
+        z-index: var(--app-z-overlay);
+    }
+    .z-app-modal {
+        z-index: var(--app-z-modal);
+    }
+    .z-app-toast {
+        z-index: var(--app-z-toast);
+    }
+}
+
 @media (hover: hover) and (pointer: fine) {
     .session-list-item:hover,
     .session-list-new-button:hover {
@@ -131,12 +160,36 @@ body {
 }
 
 /* Markdown styles */
-.markdown-content a { color: var(--app-link); text-decoration: underline; }
-.markdown-content code { background: var(--app-inline-code-bg); padding: 0.1em 0.3em; border-radius: 4px; font-size: 0.9em; }
-.markdown-content blockquote { border-left: 3px solid var(--app-hint); padding-left: 0.75rem; margin: 0.5rem 0; opacity: 0.85; }
-.markdown-content ul, .markdown-content ol { padding-left: 1.5rem; margin: 0.5rem 0; }
-.markdown-content table { border-collapse: collapse; width: 100%; }
-.markdown-content th, .markdown-content td { border: 1px solid var(--app-border); padding: 0.25rem 0.5rem; }
+.markdown-content a {
+    color: var(--app-link);
+    text-decoration: underline;
+}
+.markdown-content code {
+    background: var(--app-inline-code-bg);
+    padding: 0.1em 0.3em;
+    border-radius: 4px;
+    font-size: 0.9em;
+}
+.markdown-content blockquote {
+    border-left: 3px solid var(--app-hint);
+    padding-left: 0.75rem;
+    margin: 0.5rem 0;
+    opacity: 0.85;
+}
+.markdown-content ul,
+.markdown-content ol {
+    padding-left: 1.5rem;
+    margin: 0.5rem 0;
+}
+.markdown-content table {
+    border-collapse: collapse;
+    width: 100%;
+}
+.markdown-content th,
+.markdown-content td {
+    border: 1px solid var(--app-border);
+    padding: 0.25rem 0.5rem;
+}
 
 .aui-md-codeblock pre.shiki {
     margin: 0;
@@ -147,7 +200,7 @@ body {
 
 .aui-md-codeblock pre.shiki code {
     display: block;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
 }
 
 .aui-md-codeblock .shiki,
@@ -164,8 +217,8 @@ body {
     text-decoration: var(--shiki-light-text-decoration) !important;
 }
 
-html[data-theme="dark"] .shiki,
-html[data-theme="dark"] .shiki span {
+html[data-theme='dark'] .shiki,
+html[data-theme='dark'] .shiki span {
     color: var(--shiki-dark) !important;
     font-style: var(--shiki-dark-font-style) !important;
     font-weight: var(--shiki-dark-font-weight) !important;
@@ -174,91 +227,110 @@ html[data-theme="dark"] .shiki span {
 
 /* Ultrathink rainbow sparkle effect - per-letter wave animation */
 @keyframes rainbow-wave {
-  0% { color: #ff5555; }      /* red */
-  14% { color: #ffaa00; }     /* orange */
-  28% { color: #ffff55; }     /* yellow */
-  42% { color: #55ff55; }     /* green */
-  57% { color: #55ffff; }     /* cyan */
-  71% { color: #5555ff; }     /* blue */
-  85% { color: #ff55ff; }     /* magenta/pink */
-  100% { color: #ff5555; }    /* red */
+    0% {
+        color: #ff5555;
+    } /* red */
+    14% {
+        color: #ffaa00;
+    } /* orange */
+    28% {
+        color: #ffff55;
+    } /* yellow */
+    42% {
+        color: #55ff55;
+    } /* green */
+    57% {
+        color: #55ffff;
+    } /* cyan */
+    71% {
+        color: #5555ff;
+    } /* blue */
+    85% {
+        color: #ff55ff;
+    } /* magenta/pink */
+    100% {
+        color: #ff5555;
+    } /* red */
 }
 
 @keyframes sparkle-wave {
-  0%, 100% {
-    filter: brightness(1);
-  }
-  50% {
-    filter: brightness(0.7);
-  }
+    0%,
+    100% {
+        filter: brightness(1);
+    }
+    50% {
+        filter: brightness(0.7);
+    }
 }
 
 .rainbow-letter {
-  display: inline-block;
-  animation: rainbow-wave 2s linear infinite, sparkle-wave 2s ease-in-out infinite;
-  font-weight: 600;
+    display: inline-block;
+    animation:
+        rainbow-wave 2s linear infinite,
+        sparkle-wave 2s ease-in-out infinite;
+    font-weight: 600;
 }
 
 /* PWA install prompt animation */
 @keyframes slide-up {
-  from {
-    transform: translateY(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
+    from {
+        transform: translateY(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
 }
 
 .animate-slide-up {
-  animation: slide-up 0.3s ease-out;
+    animation: slide-up 0.3s ease-out;
 }
 
 @keyframes menu-pop {
-  from {
-    opacity: 0;
-    transform: scale(0.98);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
+    from {
+        opacity: 0;
+        transform: scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
 }
 
 .animate-menu-pop {
-  animation: menu-pop 0.18s ease-out;
+    animation: menu-pop 0.18s ease-out;
 }
 
 /* Syncing spinner animation */
 @keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 .animate-spin {
-  animation: spin 1s linear infinite;
+    animation: spin 1s linear infinite;
 }
 
 /* New messages indicator bounce animation */
 @keyframes bounce-in {
-  0% {
-    transform: translateX(-50%) scale(0.8);
-    opacity: 0;
-  }
-  50% {
-    transform: translateX(-50%) scale(1.05);
-  }
-  100% {
-    transform: translateX(-50%) scale(1);
-    opacity: 1;
-  }
+    0% {
+        transform: translateX(-50%) scale(0.8);
+        opacity: 0;
+    }
+    50% {
+        transform: translateX(-50%) scale(1.05);
+    }
+    100% {
+        transform: translateX(-50%) scale(1);
+        opacity: 1;
+    }
 }
 
 .animate-bounce-in {
-  animation: bounce-in 0.3s ease-out;
+    animation: bounce-in 0.3s ease-out;
 }

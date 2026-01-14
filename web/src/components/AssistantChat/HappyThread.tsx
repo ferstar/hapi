@@ -20,7 +20,7 @@ function NewMessagesIndicator(props: { count: number; onClick: () => void }) {
     return (
         <button
             onClick={props.onClick}
-            className="absolute bottom-20 left-1/2 -translate-x-1/2 bg-[var(--app-button)] text-[var(--app-button-text)] px-3 py-1.5 rounded-full text-sm font-medium shadow-lg animate-bounce-in z-10"
+            className="absolute bottom-20 left-1/2 -translate-x-1/2 bg-[var(--app-button)] text-[var(--app-button-text)] px-3 py-1.5 rounded-full text-sm font-medium shadow-lg animate-bounce-in z-app-sticky"
         >
             {t('misc.newMessage', { n: props.count })} &#8595;
         </button>
@@ -33,7 +33,7 @@ function MessageSkeleton() {
         { align: 'end', width: 'w-2/3', height: 'h-10' },
         { align: 'start', width: 'w-3/4', height: 'h-12' },
         { align: 'end', width: 'w-1/2', height: 'h-9' },
-        { align: 'start', width: 'w-5/6', height: 'h-14' }
+        { align: 'start', width: 'w-5/6', height: 'h-14' },
     ]
 
     return (
@@ -41,7 +41,10 @@ function MessageSkeleton() {
             <span className="sr-only">{t('misc.loadingMessages')}</span>
             <div className="space-y-3 animate-pulse">
                 {rows.map((row, index) => (
-                    <div key={`skeleton-${index}`} className={row.align === 'end' ? 'flex justify-end' : 'flex justify-start'}>
+                    <div
+                        key={`skeleton-${index}`}
+                        className={row.align === 'end' ? 'flex justify-end' : 'flex justify-start'}
+                    >
                         <div className={`${row.height} ${row.width} rounded-xl bg-[var(--app-subtle-bg)]`} />
                     </div>
                 ))}
@@ -53,7 +56,7 @@ function MessageSkeleton() {
 const THREAD_MESSAGE_COMPONENTS = {
     UserMessage: HappyUserMessage,
     AssistantMessage: HappyAssistantMessage,
-    SystemMessage: HappySystemMessage
+    SystemMessage: HappySystemMessage,
 } as const
 
 export function HappyThread(props: {
@@ -217,7 +220,12 @@ export function HappyThread(props: {
     }, [props.forceScrollToken, scrollToBottom])
 
     const handleLoadMore = useCallback(() => {
-        if (isLoadingMessagesRef.current || !hasMoreMessagesRef.current || isLoadingMoreRef.current || loadLockRef.current) {
+        if (
+            isLoadingMessagesRef.current ||
+            !hasMoreMessagesRef.current ||
+            isLoadingMoreRef.current ||
+            loadLockRef.current
+        ) {
             return
         }
         const viewport = viewportRef.current
@@ -226,7 +234,7 @@ export function HappyThread(props: {
         }
         pendingScrollRef.current = {
             scrollTop: viewport.scrollTop,
-            scrollHeight: viewport.scrollHeight
+            scrollHeight: viewport.scrollHeight,
         }
         loadLockRef.current = true
         loadStartedRef.current = false
@@ -238,16 +246,18 @@ export function HappyThread(props: {
             loadLockRef.current = false
             throw error
         }
-        void loadPromise.catch((error) => {
-            pendingScrollRef.current = null
-            loadLockRef.current = false
-            console.error('Failed to load older messages:', error)
-        }).finally(() => {
-            if (!loadStartedRef.current && !isLoadingMoreRef.current && pendingScrollRef.current) {
+        void loadPromise
+            .catch((error) => {
                 pendingScrollRef.current = null
                 loadLockRef.current = false
-            }
-        })
+                console.error('Failed to load older messages:', error)
+            })
+            .finally(() => {
+                if (!loadStartedRef.current && !isLoadingMoreRef.current && pendingScrollRef.current) {
+                    pendingScrollRef.current = null
+                    loadLockRef.current = false
+                }
+            })
     }, [])
 
     useEffect(() => {
@@ -274,7 +284,7 @@ export function HappyThread(props: {
             },
             {
                 root: viewport,
-                rootMargin: '200px 0px 0px 0px'
+                rootMargin: '200px 0px 0px 0px',
             }
         )
 
@@ -307,17 +317,22 @@ export function HappyThread(props: {
     }, [props.isLoadingMoreMessages])
 
     return (
-        <HappyChatProvider value={{
-            api: props.api,
-            sessionId: props.sessionId,
-            metadata: props.metadata,
-            disabled: props.disabled,
-            onRefresh: props.onRefresh,
-            onRetryMessage: props.onRetryMessage
-        }}>
+        <HappyChatProvider
+            value={{
+                api: props.api,
+                sessionId: props.sessionId,
+                metadata: props.metadata,
+                disabled: props.disabled,
+                onRefresh: props.onRefresh,
+                onRetryMessage: props.onRetryMessage,
+            }}
+        >
             <ThreadPrimitive.Root className="flex min-h-0 flex-1 flex-col relative">
                 <ThreadPrimitive.Viewport asChild autoScroll={autoScrollEnabled}>
-                    <div ref={viewportRef} className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden tg-scroll-viewport">
+                    <div
+                        ref={viewportRef}
+                        className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden tg-scroll-viewport"
+                    >
                         <div className="mx-auto w-full max-w-content min-w-0 p-3">
                             <div ref={topSentinelRef} className="h-px w-full" aria-hidden="true" />
                             {props.isLoadingMessages ? (
@@ -357,9 +372,12 @@ export function HappyThread(props: {
                                         </div>
                                     ) : null}
 
-                                    {import.meta.env.DEV && props.normalizedMessagesCount === 0 && props.rawMessagesCount > 0 ? (
+                                    {import.meta.env.DEV &&
+                                    props.normalizedMessagesCount === 0 &&
+                                    props.rawMessagesCount > 0 ? (
                                         <div className="mb-2 rounded-md bg-amber-500/10 p-2 text-xs">
-                                            Message normalization returned 0 items for {props.rawMessagesCount} messages (see `web/src/chat/normalize.ts`).
+                                            Message normalization returned 0 items for {props.rawMessagesCount} messages
+                                            (see `web/src/chat/normalize.ts`).
                                         </div>
                                     ) : null}
                                 </>

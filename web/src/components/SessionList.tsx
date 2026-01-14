@@ -400,7 +400,7 @@ export function SessionList(props: {
                             <button
                                 type="button"
                                 onClick={() => toggleGroup(group.directory, isCollapsed)}
-                                className="sticky top-0 z-10 flex w-full items-center gap-2 px-3 py-2 text-left bg-[var(--app-bg)] border-b border-[var(--app-divider)] transition-colors hover:bg-[var(--app-secondary-bg)]"
+                                className="sticky top-0 z-app-sticky flex w-full items-center gap-2 px-3 py-2 text-left bg-[var(--app-bg)] border-b border-[var(--app-divider)] transition-colors hover:bg-[var(--app-secondary-bg)]"
                             >
                                 <ChevronIcon className="h-4 w-4 text-[var(--app-hint)]" collapsed={isCollapsed} />
                                 <div className="flex items-center gap-2 min-w-0 flex-1">

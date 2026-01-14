@@ -191,7 +191,7 @@ export function ComposerButtons(props: {
                             <div
                                 id={sessionMenuId}
                                 role="menu"
-                                className="absolute bottom-full left-0 z-50 mb-2 min-w-[200px] rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] p-1 shadow-lg animate-menu-pop"
+                                className="absolute bottom-full left-0 z-app-menu mb-2 min-w-[200px] rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] p-1 shadow-lg animate-menu-pop"
                             >
                                 {props.showRenameButton ? (
                                     <button
