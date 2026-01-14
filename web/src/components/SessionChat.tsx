@@ -85,6 +85,7 @@ export function SessionChat(props: {
     const [archiveOpen, setArchiveOpen] = useState(false)
     const [restoreOpen, setRestoreOpen] = useState(false)
     const [deleteOpen, setDeleteOpen] = useState(false)
+    const [closeAndNewOpen, setCloseAndNewOpen] = useState(false)
 
     useEffect(() => {
         normalizedCacheRef.current.clear()
@@ -317,6 +318,7 @@ export function SessionChat(props: {
                         onRename={() => setRenameOpen(true)}
                         onArchive={() => setArchiveOpen(true)}
                         onDelete={() => setDeleteOpen(true)}
+                        onCloseAndNew={() => setCloseAndNewOpen(true)}
                         onViewFiles={props.session.metadata?.path ? handleViewFiles : undefined}
                         sessionActionsDisabled={isPending}
                         autocompleteSuggestions={props.autocompleteSuggestions}
@@ -374,6 +376,23 @@ export function SessionChat(props: {
                 onConfirm={async () => {
                     await deleteSession()
                     props.onBack()
+                }}
+                isPending={isPending}
+                destructive
+            />
+
+            <ConfirmDialog
+                isOpen={closeAndNewOpen}
+                onClose={() => setCloseAndNewOpen(false)}
+                title={t('dialog.closeAndNew.title')}
+                description={t('dialog.closeAndNew.description')}
+                confirmLabel={t('dialog.closeAndNew.confirm')}
+                confirmingLabel={t('dialog.closeAndNew.confirming')}
+                onConfirm={async () => {
+                    if (props.session.active) {
+                        await archiveSession()
+                    }
+                    navigate({ to: '/sessions/new' })
                 }}
                 isPending={isPending}
                 destructive

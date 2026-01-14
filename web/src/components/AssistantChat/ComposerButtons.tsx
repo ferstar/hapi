@@ -1,4 +1,6 @@
 import { ComposerPrimitive } from '@assistant-ui/react'
+import { useEffect, useId, useRef, useState } from 'react'
+import { FileDiffIcon, TerminalIcon } from '@/components/ToolCard/icons'
 import { useTranslation } from '@/lib/use-translation'
 
 function SwitchToRemoteIcon() {
@@ -103,6 +105,23 @@ function SendIcon() {
     )
 }
 
+function MenuIcon(props: { className?: string }) {
+    return (
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            className={props.className}
+        >
+            <circle cx="12" cy="5" r="2" />
+            <circle cx="12" cy="12" r="2" />
+            <circle cx="12" cy="19" r="2" />
+        </svg>
+    )
+}
+
 export function ComposerButtons(props: {
     canSend: boolean
     threadIsRunning: boolean
@@ -116,6 +135,9 @@ export function ComposerButtons(props: {
     showDeleteButton: boolean
     deleteDisabled: boolean
     onDelete: () => void
+    showCloseAndNewButton: boolean
+    closeAndNewDisabled: boolean
+    onCloseAndNew: () => void
     showTerminalButton: boolean
     terminalDisabled: boolean
     terminalConfirmActive: boolean
@@ -134,6 +156,54 @@ export function ComposerButtons(props: {
     onSwitch: () => void
 }) {
     const { t } = useTranslation()
+    const [sessionMenuOpen, setSessionMenuOpen] = useState(false)
+    const sessionMenuRef = useRef<HTMLDivElement | null>(null)
+    const sessionMenuId = useId()
+
+    const showSessionMenu =
+        props.showRenameButton || props.showArchiveButton || props.showDeleteButton || props.showCloseAndNewButton
+    const leftButtonCount =
+        (showSessionMenu ? 1 : 0) +
+        (props.showTerminalButton ? 1 : 0) +
+        (props.showFilesButton ? 1 : 0) +
+        (props.showSwitchButton ? 1 : 0)
+
+    useEffect(() => {
+        if (!sessionMenuOpen) return
+
+        const handlePointerDown = (event: PointerEvent) => {
+            const target = event.target as Node | null
+            if (!target) return
+            if (sessionMenuRef.current?.contains(target)) return
+            setSessionMenuOpen(false)
+        }
+
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                setSessionMenuOpen(false)
+            }
+        }
+
+        document.addEventListener('pointerdown', handlePointerDown)
+        document.addEventListener('keydown', handleKeyDown)
+        return () => {
+            document.removeEventListener('pointerdown', handlePointerDown)
+            document.removeEventListener('keydown', handleKeyDown)
+        }
+    }, [sessionMenuOpen])
+
+    const baseItemClassName =
+        'flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)]'
+
+    const getItemClassName = (disabled: boolean, danger = false) => {
+        if (disabled) {
+            return `${baseItemClassName} cursor-not-allowed opacity-50`
+        }
+        if (danger) {
+            return `${baseItemClassName} text-red-500 hover:bg-red-500/10`
+        }
+        return `${baseItemClassName} hover:bg-[var(--app-subtle-bg)]`
+    }
 
     return (
         <div className="flex items-center justify-between px-2 pb-2">
@@ -147,19 +217,53 @@ export function ComposerButtons(props: {
                     <AttachmentIcon />
                 </ComposerPrimitive.AddAttachment>
 
-                <div className="h-8 w-px bg-[var(--app-fg)]/10" />
+                                {props.showCloseAndNewButton ? (
+                                    <button
+                                        type="button"
+                                        role="menuitem"
+                                        className={getItemClassName(props.closeAndNewDisabled, true)}
+                                        onClick={() => {
+                                            setSessionMenuOpen(false)
+                                            props.onCloseAndNew()
+                                        }}
+                                        disabled={props.closeAndNewDisabled}
+                                    >
+                                        {t('session.action.closeAndNew')}
+                                    </button>
+                                ) : null}
+
+                                {props.showDeleteButton ? (
+                                    <button
+                                        type="button"
+                                        role="menuitem"
+                                        className={getItemClassName(props.deleteDisabled, true)}
+                                        onClick={() => {
+                                            setSessionMenuOpen(false)
+                                            props.onDelete()
+                                        }}
+                                        disabled={props.deleteDisabled}
+                                    >
+                                        {t('session.action.delete')}
+                                    </button>
+                                ) : null}
+                            </div>
+                        ) : null}
+                    </div>
+                ) : null}
 
                 <div className="flex items-center gap-2">
                     {props.showTerminalButton ? (
                         <button
                             type="button"
-                            aria-label={props.terminalConfirmActive ? t('composer.terminalConfirm') : t('composer.terminal')}
+                            aria-label={
+                                props.terminalConfirmActive ? t('composer.terminalConfirm') : t('composer.terminal')
+                            }
                             title={props.terminalConfirmActive ? t('composer.terminalConfirm') : t('composer.terminal')}
-                            className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--app-fg)]/65 transition-colors hover:bg-[var(--app-bg)] hover:text-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
-                            onClick={props.onTerminal}
                             disabled={props.terminalDisabled}
+                            className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--app-fg)]/65 transition-colors hover:bg-[var(--app-bg)] hover:text-[var(--app-fg)] disabled:cursor-not-allowed disabled:opacity-50"
+                            onClick={props.onTerminal}
                         >
-                            <TerminalIcon />
+                            <TerminalIcon className="h-4 w-4" />
                         </button>
                     ) : null}
 
@@ -168,24 +272,11 @@ export function ComposerButtons(props: {
                             type="button"
                             aria-label={props.filesConfirmActive ? t('composer.filesConfirm') : t('session.title')}
                             title={props.filesConfirmActive ? t('composer.filesConfirm') : t('session.title')}
+                            disabled={props.filesDisabled}
                             className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--app-fg)]/65 transition-colors hover:bg-[var(--app-bg)] hover:text-[var(--app-fg)] disabled:cursor-not-allowed disabled:opacity-50"
                             onClick={props.onFiles}
-                            disabled={props.filesDisabled}
                         >
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="18"
-                                height="18"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                            >
-                                <path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
-                                <path d="M14 2v6h6" />
-                            </svg>
+                            <FileDiffIcon className="h-4 w-4" />
                         </button>
                     ) : null}
 

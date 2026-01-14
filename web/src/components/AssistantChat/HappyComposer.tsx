@@ -49,6 +49,7 @@ export function HappyComposer(props: {
     onRename?: () => void
     onArchive?: () => void
     onDelete?: () => void
+    onCloseAndNew?: () => void
     onViewFiles?: () => void
     sessionActionsDisabled?: boolean
     autocompletePrefixes?: string[]
@@ -72,6 +73,7 @@ export function HappyComposer(props: {
         onRename,
         onArchive,
         onDelete,
+        onCloseAndNew,
         onViewFiles,
         sessionActionsDisabled = false,
         autocompletePrefixes = ['@', '/'],
@@ -500,6 +502,7 @@ export function HappyComposer(props: {
     const showRenameButton = Boolean(onRename)
     const showArchiveButton = Boolean(onArchive)
     const showDeleteButton = Boolean(onDelete)
+    const showCloseAndNewButton = Boolean(onCloseAndNew)
     const showFilesButton = Boolean(onViewFiles)
 
     const overlays = useMemo(() => {
@@ -678,6 +681,9 @@ export function HappyComposer(props: {
                             showDeleteButton={showDeleteButton}
                             deleteDisabled={sessionActionsDisabled}
                             onDelete={onDelete ?? (() => {})}
+                            showCloseAndNewButton={showCloseAndNewButton}
+                            closeAndNewDisabled={sessionActionsDisabled}
+                            onCloseAndNew={onCloseAndNew ?? (() => {})}
                             showTerminalButton={showTerminalButton}
                             terminalDisabled={controlsDisabled}
                             terminalConfirmActive={terminalConfirmActive}
