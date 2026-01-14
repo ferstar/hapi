@@ -105,6 +105,22 @@ export class CodexPermissionHandler extends BasePermissionHandler<PermissionResp
             reason: result.reason,
         })
 
-        return { shouldRemove: true }
+        return {
+            status: response.approved ? 'approved' : 'denied',
+            decision: result.decision,
+            reason: result.reason,
+        }
+    }
+
+    protected handleMissingPendingResponse(_response: PermissionResponse): void {
+        logger.debug('[Codex] Permission request not found or already resolved')
+    }
+
+    reset(): void {
+        this.cancelPendingRequests({
+            completedReason: 'Session reset',
+            rejectMessage: 'Session reset',
+        })
+        logger.debug('[Codex] Permission handler reset')
     }
 }
