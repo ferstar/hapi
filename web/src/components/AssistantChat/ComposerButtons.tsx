@@ -1,4 +1,6 @@
 import { ComposerPrimitive } from '@assistant-ui/react'
+import { useEffect, useId, useRef, useState } from 'react'
+import { FileDiffIcon, TerminalIcon } from '@/components/ToolCard/icons'
 import { useTranslation } from '@/lib/use-translation'
 
 function SwitchToRemoteIcon() {
@@ -16,26 +18,6 @@ function SwitchToRemoteIcon() {
         >
             <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
             <line x1="12" y1="18" x2="12.01" y2="18" />
-        </svg>
-    )
-}
-
-function TerminalIcon() {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-        >
-            <rect x="3" y="4" width="18" height="16" rx="2" ry="2" />
-            <polyline points="7 9 10 12 7 15" />
-            <line x1="12" y1="15" x2="17" y2="15" />
         </svg>
     )
 }
@@ -60,13 +42,7 @@ function AbortIcon(props: { spinning: boolean }) {
     }
 
     return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="18"
-            height="18"
-            viewBox="0 0 16 16"
-            fill="currentColor"
-        >
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 16 16" fill="currentColor">
             <path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM1.5 8a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0Zm4-2.5a.5.5 0 0 1 .5-.5h4a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-.5.5h-4a.5.5 0 0 1-.5-.5v-4Z" />
         </svg>
     )
@@ -91,6 +67,23 @@ function SendIcon() {
     )
 }
 
+function MenuIcon(props: { className?: string }) {
+    return (
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            className={props.className}
+        >
+            <circle cx="12" cy="5" r="2" />
+            <circle cx="12" cy="12" r="2" />
+            <circle cx="12" cy="19" r="2" />
+        </svg>
+    )
+}
+
 export function ComposerButtons(props: {
     canSend: boolean
     threadIsRunning: boolean
@@ -104,6 +97,9 @@ export function ComposerButtons(props: {
     showDeleteButton: boolean
     deleteDisabled: boolean
     onDelete: () => void
+    showCloseAndNewButton: boolean
+    closeAndNewDisabled: boolean
+    onCloseAndNew: () => void
     showTerminalButton: boolean
     terminalDisabled: boolean
     terminalConfirmActive: boolean
@@ -122,107 +118,159 @@ export function ComposerButtons(props: {
     onSwitch: () => void
 }) {
     const { t } = useTranslation()
+    const [sessionMenuOpen, setSessionMenuOpen] = useState(false)
+    const sessionMenuRef = useRef<HTMLDivElement | null>(null)
+    const sessionMenuId = useId()
+
+    const showSessionMenu =
+        props.showRenameButton || props.showArchiveButton || props.showDeleteButton || props.showCloseAndNewButton
+    const leftButtonCount =
+        (showSessionMenu ? 1 : 0) +
+        (props.showTerminalButton ? 1 : 0) +
+        (props.showFilesButton ? 1 : 0) +
+        (props.showSwitchButton ? 1 : 0)
+
+    useEffect(() => {
+        if (!sessionMenuOpen) return
+
+        const handlePointerDown = (event: PointerEvent) => {
+            const target = event.target as Node | null
+            if (!target) return
+            if (sessionMenuRef.current?.contains(target)) return
+            setSessionMenuOpen(false)
+        }
+
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                setSessionMenuOpen(false)
+            }
+        }
+
+        document.addEventListener('pointerdown', handlePointerDown)
+        document.addEventListener('keydown', handleKeyDown)
+        return () => {
+            document.removeEventListener('pointerdown', handlePointerDown)
+            document.removeEventListener('keydown', handleKeyDown)
+        }
+    }, [sessionMenuOpen])
+
+    const baseItemClassName =
+        'flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)]'
+
+    const getItemClassName = (disabled: boolean, danger = false) => {
+        if (disabled) {
+            return `${baseItemClassName} cursor-not-allowed opacity-50`
+        }
+        if (danger) {
+            return `${baseItemClassName} text-red-500 hover:bg-red-500/10`
+        }
+        return `${baseItemClassName} hover:bg-[var(--app-subtle-bg)]`
+    }
 
     return (
-        <div className="flex items-center justify-between px-2 pb-2">
+        <div className="flex items-center justify-between px-4 pb-3">
             <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2">
-                    {props.showRenameButton ? (
+                {showSessionMenu ? (
+                    <div className="relative" ref={sessionMenuRef}>
                         <button
                             type="button"
-                            aria-label={t('session.action.rename')}
-                            title={t('session.action.rename')}
-                            className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--app-fg)]/65 transition-colors hover:bg-[var(--app-bg)] hover:text-[var(--app-fg)] disabled:cursor-not-allowed disabled:opacity-50"
-                            onClick={props.onRename}
-                            disabled={props.renameDisabled}
+                            aria-label={t('session.more')}
+                            title={t('session.more')}
+                            aria-haspopup="menu"
+                            aria-expanded={sessionMenuOpen}
+                            aria-controls={sessionMenuOpen ? sessionMenuId : undefined}
+                            className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--app-fg)]/65 transition-colors hover:bg-[var(--app-bg)] hover:text-[var(--app-fg)]"
+                            onClick={() => {
+                                setSessionMenuOpen((open) => !open)
+                                setToolsMenuOpen(false)
+                            }}
                         >
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="18"
-                                height="18"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                            >
-                                <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-                                <path d="m15 5 4 4" />
-                            </svg>
+                            <MenuIcon />
                         </button>
-                    ) : null}
 
-                    {props.showArchiveButton ? (
-                        <button
-                            type="button"
-                            aria-label={t('session.action.archive')}
-                            title={t('session.action.archive')}
-                            className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--app-fg)]/65 transition-colors hover:bg-[var(--app-bg)] hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-50"
-                            onClick={props.onArchive}
-                            disabled={props.archiveDisabled}
-                        >
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="18"
-                                height="18"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
+                        {sessionMenuOpen ? (
+                            <div
+                                id={sessionMenuId}
+                                role="menu"
+                                className="absolute bottom-full left-0 z-50 mb-2 min-w-[200px] rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] p-1 shadow-lg animate-menu-pop"
                             >
-                                <rect width="20" height="5" x="2" y="3" rx="1" />
-                                <path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8" />
-                                <path d="M10 12h4" />
-                            </svg>
-                        </button>
-                    ) : null}
+                                {props.showRenameButton ? (
+                                    <button
+                                        type="button"
+                                        role="menuitem"
+                                        className={getItemClassName(props.renameDisabled)}
+                                        onClick={() => {
+                                            setSessionMenuOpen(false)
+                                            props.onRename()
+                                        }}
+                                        disabled={props.renameDisabled}
+                                    >
+                                        {t('session.action.rename')}
+                                    </button>
+                                ) : null}
 
-                    {props.showDeleteButton ? (
-                        <button
-                            type="button"
-                            aria-label={t('session.action.delete')}
-                            title={t('session.action.delete')}
-                            className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--app-fg)]/65 transition-colors hover:bg-[var(--app-bg)] hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-50"
-                            onClick={props.onDelete}
-                            disabled={props.deleteDisabled}
-                        >
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="18"
-                                height="18"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                            >
-                                <path d="M3 6h18" />
-                                <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                                <path d="M10 11v6" />
-                                <path d="M14 11v6" />
-                            </svg>
-                        </button>
-                    ) : null}
-                </div>
+                                {props.showArchiveButton ? (
+                                    <button
+                                        type="button"
+                                        role="menuitem"
+                                        className={getItemClassName(props.archiveDisabled, true)}
+                                        onClick={() => {
+                                            setSessionMenuOpen(false)
+                                            props.onArchive()
+                                        }}
+                                        disabled={props.archiveDisabled}
+                                    >
+                                        {t('session.action.archive')}
+                                    </button>
+                                ) : null}
 
-                <div className="h-8 w-px bg-[var(--app-fg)]/10" />
+                                {props.showCloseAndNewButton ? (
+                                    <button
+                                        type="button"
+                                        role="menuitem"
+                                        className={getItemClassName(props.closeAndNewDisabled, true)}
+                                        onClick={() => {
+                                            setSessionMenuOpen(false)
+                                            props.onCloseAndNew()
+                                        }}
+                                        disabled={props.closeAndNewDisabled}
+                                    >
+                                        {t('session.action.closeAndNew')}
+                                    </button>
+                                ) : null}
+
+                                {props.showDeleteButton ? (
+                                    <button
+                                        type="button"
+                                        role="menuitem"
+                                        className={getItemClassName(props.deleteDisabled, true)}
+                                        onClick={() => {
+                                            setSessionMenuOpen(false)
+                                            props.onDelete()
+                                        }}
+                                        disabled={props.deleteDisabled}
+                                    >
+                                        {t('session.action.delete')}
+                                    </button>
+                                ) : null}
+                            </div>
+                        ) : null}
+                    </div>
+                ) : null}
 
                 <div className="flex items-center gap-2">
                     {props.showTerminalButton ? (
                         <button
                             type="button"
-                            aria-label={props.terminalConfirmActive ? t('composer.terminalConfirm') : t('composer.terminal')}
+                            aria-label={
+                                props.terminalConfirmActive ? t('composer.terminalConfirm') : t('composer.terminal')
+                            }
                             title={props.terminalConfirmActive ? t('composer.terminalConfirm') : t('composer.terminal')}
-                            className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--app-fg)]/65 transition-colors hover:bg-[var(--app-bg)] hover:text-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
-                            onClick={props.onTerminal}
                             disabled={props.terminalDisabled}
+                            className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--app-fg)]/65 transition-colors hover:bg-[var(--app-bg)] hover:text-[var(--app-fg)] disabled:cursor-not-allowed disabled:opacity-50"
+                            onClick={props.onTerminal}
                         >
-                            <TerminalIcon />
+                            <TerminalIcon className="h-4 w-4" />
                         </button>
                     ) : null}
 
@@ -231,24 +279,11 @@ export function ComposerButtons(props: {
                             type="button"
                             aria-label={props.filesConfirmActive ? t('composer.filesConfirm') : t('session.title')}
                             title={props.filesConfirmActive ? t('composer.filesConfirm') : t('session.title')}
+                            disabled={props.filesDisabled}
                             className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--app-fg)]/65 transition-colors hover:bg-[var(--app-bg)] hover:text-[var(--app-fg)] disabled:cursor-not-allowed disabled:opacity-50"
                             onClick={props.onFiles}
-                            disabled={props.filesDisabled}
                         >
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="18"
-                                height="18"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                            >
-                                <path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
-                                <path d="M14 2v6h6" />
-                            </svg>
+                            <FileDiffIcon className="h-4 w-4" />
                         </button>
                     ) : null}
 
@@ -284,9 +319,7 @@ export function ComposerButtons(props: {
                     aria-label={t('composer.send')}
                     title={t('composer.send')}
                     className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors ${
-                        props.canSend && !props.controlsDisabled
-                            ? 'bg-black text-white'
-                            : 'bg-[#C0C0C0] text-white'
+                        props.canSend && !props.controlsDisabled ? 'bg-black text-white' : 'bg-[#C0C0C0] text-white'
                     } disabled:cursor-not-allowed`}
                 >
                     <SendIcon />
