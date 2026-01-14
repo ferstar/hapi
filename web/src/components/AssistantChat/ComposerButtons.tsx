@@ -182,7 +182,6 @@ export function ComposerButtons(props: {
                             className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--app-fg)]/65 transition-colors hover:bg-[var(--app-bg)] hover:text-[var(--app-fg)]"
                             onClick={() => {
                                 setSessionMenuOpen((open) => !open)
-                                setToolsMenuOpen(false)
                             }}
                         >
                             <MenuIcon />
