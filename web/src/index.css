@@ -57,9 +57,9 @@
     --app-z-sticky: 10;
     --app-z-banner: 20;
     --app-z-menu: 30;
-    --app-z-overlay: 40;
-    --app-z-modal: 50;
-    --app-z-toast: 60;
+    --app-z-overlay: 900;
+    --app-z-modal: 1000;
+    --app-z-toast: 1100;
 }
 
 [data-theme='dark'] {
