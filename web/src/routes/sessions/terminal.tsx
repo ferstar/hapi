@@ -226,19 +226,26 @@ export default function TerminalPage() {
         setAltActive(false)
     }, [])
 
+    const dispatchSequence = useCallback(
+        (sequence: string, modifierState: ModifierState) => {
+            write(applyModifierState(sequence, modifierState))
+            if (shouldResetModifiers(sequence, modifierState)) {
+                resetModifiers()
+            }
+        },
+        [write, resetModifiers]
+    )
+
     const handleTerminalMount = useCallback(
         (terminal: Terminal) => {
             terminalRef.current = terminal
             inputDisposableRef.current?.dispose()
             inputDisposableRef.current = terminal.onData((data) => {
-                const state = modifierStateRef.current
-                write(applyModifierState(data, state))
-                if (shouldResetModifiers(data, state)) {
-                    resetModifiers()
-                }
+                const modifierState = modifierStateRef.current
+                dispatchSequence(data, modifierState)
             })
         },
-        [write, resetModifiers]
+        [dispatchSequence]
     )
 
     const handleResize = useCallback(
@@ -304,22 +311,16 @@ export default function TerminalPage() {
     }, [terminalState.status])
 
     const quickInputDisabled = !session?.active || terminalState.status !== 'connected'
-    const applyModifiers = useCallback(
-        (sequence: string): string => {
-            return applyModifierState(sequence, { ctrl: ctrlActive, alt: altActive })
-        },
-        [altActive, ctrlActive]
-    )
-
     const handleQuickInput = useCallback(
         (sequence: string) => {
             if (quickInputDisabled) {
                 return
             }
-            write(applyModifiers(sequence))
+            const modifierState = { ctrl: ctrlActive, alt: altActive }
+            dispatchSequence(sequence, modifierState)
             terminalRef.current?.focus()
         },
-        [quickInputDisabled, write, applyModifiers, ctrlActive, altActive]
+        [quickInputDisabled, ctrlActive, altActive, dispatchSequence]
     )
 
     const handleModifierToggle = useCallback(
@@ -329,10 +330,8 @@ export default function TerminalPage() {
             }
             if (modifier === 'ctrl') {
                 setCtrlActive((value) => !value)
-                setAltActive(false)
             } else {
                 setAltActive((value) => !value)
-                setCtrlActive(false)
             }
             terminalRef.current?.focus()
         },
