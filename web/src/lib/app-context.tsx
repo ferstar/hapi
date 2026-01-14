@@ -4,19 +4,13 @@ import type { ApiClient } from '@/api/client'
 type AppContextValue = {
     api: ApiClient
     token: string
+    baseUrl: string
 }
 
 const AppContext = createContext<AppContextValue | null>(null)
 
-export function AppContextProvider(props: {
-    value: AppContextValue
-    children: ReactNode
-}) {
-    return (
-        <AppContext.Provider value={props.value}>
-            {props.children}
-        </AppContext.Provider>
-    )
+export function AppContextProvider(props: { value: AppContextValue; children: ReactNode }) {
+    return <AppContext.Provider value={props.value}>{props.children}</AppContext.Provider>
 }
 
 export function useAppContext(): AppContextValue {

@@ -22,7 +22,7 @@ function parseServerArgs(args: string[]): { host?: string; port?: string } {
 
 export const serverCommand: CommandDefinition = {
     name: 'server',
-    requiresRuntimeAssets: false,
+    requiresRuntimeAssets: true,
     run: async (context: CommandContext) => {
         try {
             const { host, port } = parseServerArgs(context.commandArgs)
@@ -33,7 +33,6 @@ export const serverCommand: CommandDefinition = {
             if (port) {
                 process.env.WEBAPP_PORT = port
             }
-
             await import('../../../server/src/index')
         } catch (error) {
             console.error(chalk.red('Error:'), error instanceof Error ? error.message : 'Unknown error')
@@ -42,5 +41,5 @@ export const serverCommand: CommandDefinition = {
             }
             process.exit(1)
         }
-    }
+    },
 }

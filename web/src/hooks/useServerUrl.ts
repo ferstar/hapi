@@ -2,9 +2,7 @@ import { useCallback, useMemo, useState } from 'react'
 
 const SERVER_URL_KEY = 'hapi_server_url'
 
-export type ServerUrlResult =
-    | { ok: true; value: string }
-    | { ok: false; error: string }
+export type ServerUrlResult = { ok: true; value: string } | { ok: false; error: string }
 
 export function normalizeServerUrl(input: string): ServerUrlResult {
     const trimmed = input.trim()
@@ -24,6 +22,17 @@ export function normalizeServerUrl(input: string): ServerUrlResult {
     }
 
     return { ok: true, value: parsed.origin }
+}
+
+function getServerFromUrlParams(): string | null {
+    if (typeof window === 'undefined') return null
+    const query = new URLSearchParams(window.location.search)
+    const server = query.get('server')
+    if (server) {
+        const normalized = normalizeServerUrl(server)
+        return normalized.ok ? normalized.value : null
+    }
+    return null
 }
 
 function readStoredServerUrl(): string | null {
@@ -65,7 +74,15 @@ export function useServerUrl(): {
     setServerUrl: (input: string) => ServerUrlResult
     clearServerUrl: () => void
 } {
-    const [serverUrl, setServerUrlState] = useState<string | null>(() => readStoredServerUrl())
+    const [serverUrl, setServerUrlState] = useState<string | null>(() => {
+        // Priority: URL params > localStorage
+        const fromUrl = getServerFromUrlParams()
+        if (fromUrl) {
+            writeStoredServerUrl(fromUrl) // Save to localStorage for refresh
+            return fromUrl
+        }
+        return readStoredServerUrl()
+    })
 
     const fallbackOrigin = typeof window !== 'undefined' ? window.location.origin : ''
     const baseUrl = useMemo(() => serverUrl ?? fallbackOrigin, [serverUrl, fallbackOrigin])
@@ -89,6 +106,6 @@ export function useServerUrl(): {
         serverUrl,
         baseUrl,
         setServerUrl,
-        clearServerUrl
+        clearServerUrl,
     }
 }

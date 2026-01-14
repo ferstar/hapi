@@ -21,6 +21,12 @@ function getTelegramInitData(): string | null {
     return initData || null
 }
 
+function getTokenFromUrlParams(): string | null {
+    if (typeof window === 'undefined') return null
+    const query = new URLSearchParams(window.location.search)
+    return query.get('token')
+}
+
 function getAccessTokenKey(baseUrl: string): string {
     return `${ACCESS_TOKEN_PREFIX}${baseUrl}`
 }
@@ -79,6 +85,15 @@ export function useAuthSource(baseUrl: string): {
             return
         }
 
+        // Check for URL token parameter (for direct access links)
+        const urlToken = getTokenFromUrlParams()
+        if (urlToken) {
+            storeAccessToken(accessTokenKey, urlToken) // Save to localStorage for refresh
+            setAuthSource({ type: 'accessToken', token: urlToken })
+            setIsLoading(false)
+            return
+        }
+
         // Check for stored access token as fallback
         const storedToken = getStoredAccessToken(accessTokenKey)
         if (storedToken) {
@@ -120,10 +135,13 @@ export function useAuthSource(baseUrl: string): {
         }
     }, [accessTokenKey])
 
-    const setAccessToken = useCallback((token: string) => {
-        storeAccessToken(accessTokenKey, token)
-        setAuthSource({ type: 'accessToken', token })
-    }, [accessTokenKey])
+    const setAccessToken = useCallback(
+        (token: string) => {
+            storeAccessToken(accessTokenKey, token)
+            setAuthSource({ type: 'accessToken', token })
+        },
+        [accessTokenKey]
+    )
 
     const clearAuth = useCallback(() => {
         clearStoredAccessToken(accessTokenKey)
@@ -135,6 +153,6 @@ export function useAuthSource(baseUrl: string): {
         isLoading,
         isTelegram,
         setAccessToken,
-        clearAuth
+        clearAuth,
     }
 }

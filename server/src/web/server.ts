@@ -30,7 +30,7 @@ function findWebappDistDir(): { distDir: string; indexHtmlPath: string } {
     const candidates = [
         join(process.cwd(), '..', 'web', 'dist'),
         join(import.meta.dir, '..', '..', '..', 'web', 'dist'),
-        join(process.cwd(), 'web', 'dist')
+        join(process.cwd(), 'web', 'dist'),
     ]
 
     for (const distDir of candidates) {
@@ -47,8 +47,8 @@ function findWebappDistDir(): { distDir: string; indexHtmlPath: string } {
 function serveEmbeddedAsset(asset: EmbeddedWebAsset): Response {
     return new Response(Bun.file(asset.sourcePath), {
         headers: {
-            'Content-Type': asset.mimeType
-        }
+            'Content-Type': asset.mimeType,
+        },
     })
 }
 
@@ -59,7 +59,10 @@ function createWebApp(options: {
     jwtSecret: Uint8Array
     store: Store
     vapidPublicKey: string
+    corsOrigins?: string[]
     embeddedAssetMap: Map<string, EmbeddedWebAsset> | null
+    relayMode?: boolean
+    officialWebUrl?: string
 }): Hono<WebAppEnv> {
     const app = new Hono<WebAppEnv>()
 
@@ -68,12 +71,12 @@ function createWebApp(options: {
     // Health check endpoint (no auth required)
     app.get('/health', (c) => c.json({ status: 'ok' }))
 
-    const corsOrigins = configuration.corsOrigins
+    const corsOrigins = options.corsOrigins ?? configuration.corsOrigins
     const corsOriginOption = corsOrigins.includes('*') ? '*' : corsOrigins
     const corsMiddleware = cors({
         origin: corsOriginOption,
         allowMethods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
-        allowHeaders: ['authorization', 'content-type']
+        allowHeaders: ['authorization', 'content-type'],
     })
     app.use('/api/*', corsMiddleware)
     app.use('/cli/*', corsMiddleware)
@@ -91,6 +94,31 @@ function createWebApp(options: {
     app.route('/api', createMachinesRoutes(options.getSyncEngine))
     app.route('/api', createGitRoutes(options.getSyncEngine))
     app.route('/api', createPushRoutes(options.store, options.vapidPublicKey))
+
+    // Skip static serving in relay mode, show helpful message on root
+    if (options.relayMode) {
+        const officialUrl = options.officialWebUrl || 'https://app.hapi.run'
+        app.get('/', (c) => {
+            return c.html(`<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>HAPI Server</title></head>
+<body style="font-family: system-ui; padding: 2rem; max-width: 600px;">
+<h1>HAPI Server</h1>
+<p>This server is running in relay mode. Please use the official web app:</p>
+<p><a href="${officialUrl}">${officialUrl}</a></p>
+<details>
+<summary>Why am I seeing this?</summary>
+<p style="margin-top: 0.5rem; color: #666;">
+When relay mode is enabled, all traffic flows through our relay infrastructure with end-to-end encryption.
+To reduce bandwidth and improve performance, the frontend is served separately
+from GitHub Pages instead of through the relay tunnel.
+</p>
+</details>
+</body>
+</html>`)
+        })
+        return app
+    }
 
     if (options.embeddedAssetMap) {
         const embeddedAssetMap = options.embeddedAssetMap
@@ -139,10 +167,7 @@ function createWebApp(options: {
 
     if (!existsSync(indexHtmlPath)) {
         app.get('/', (c) => {
-            return c.text(
-                'Mini App is not built.\n\nRun:\n  cd web\n  bun install\n  bun run build\n',
-                503
-            )
+            return c.text('Mini App is not built.\n\nRun:\n  cd web\n  bun install\n  bun run build\n', 503)
         })
         return app
     }
@@ -178,6 +203,9 @@ export async function startWebServer(options: {
     store: Store
     vapidPublicKey: string
     socketEngine: SocketEngine
+    corsOrigins?: string[]
+    relayMode?: boolean
+    officialWebUrl?: string
 }): Promise<BunServer<WebSocketData>> {
     const isCompiled = isBunCompiled()
     const embeddedAssetMap = isCompiled ? await loadEmbeddedAssetMap() : null
@@ -188,7 +216,10 @@ export async function startWebServer(options: {
         jwtSecret: options.jwtSecret,
         store: options.store,
         vapidPublicKey: options.vapidPublicKey,
-        embeddedAssetMap
+        corsOrigins: options.corsOrigins,
+        embeddedAssetMap,
+        relayMode: options.relayMode,
+        officialWebUrl: options.officialWebUrl,
     })
 
     const socketHandler = options.socketEngine.handler()
@@ -205,7 +236,7 @@ export async function startWebServer(options: {
                 return socketHandler.fetch(req, server)
             }
             return app.fetch(req)
-        }
+        },
     })
 
     console.log(`[Web] Mini App server listening on ${configuration.webappHost}:${configuration.webappPort}`)

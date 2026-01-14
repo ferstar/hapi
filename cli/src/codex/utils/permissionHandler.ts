@@ -96,8 +96,6 @@ export class CodexPermissionHandler extends BasePermissionHandler<PermissionResp
               }
 
         pending.resolve(result)
-        logger.debug(`[Codex] Permission ${response.approved ? 'approved' : 'denied'} for ${pending.toolName}`)
-
         this.options?.onComplete?.({
             id: response.id,
             toolName: pending.toolName,
@@ -107,26 +105,6 @@ export class CodexPermissionHandler extends BasePermissionHandler<PermissionResp
             reason: result.reason,
         })
 
-        return {
-            status: response.approved ? 'approved' : 'denied',
-            decision: result.decision,
-            reason: result.reason,
-        }
-    }
-
-    protected handleMissingPendingResponse(_response: PermissionResponse): void {
-        logger.debug('[Codex] Permission request not found or already resolved')
-    }
-
-    /**
-     * Reset state for new sessions
-     */
-    reset(reason?: string): void {
-        this.cancelPendingRequests({
-            completedReason: reason ?? 'Session reset',
-            rejectMessage: reason ?? 'Session reset',
-        })
-
-        logger.debug('[Codex] Permission handler reset')
+        return { shouldRemove: true }
     }
 }

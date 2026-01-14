@@ -72,6 +72,7 @@ ${chalk.bold('Usage:')}
   hapi connect           (not available in direct-connect mode)
   hapi notify            (not available in direct-connect mode)
   hapi server            Start the API + web server
+  hapi server --relay    Start with public relay
   hapi daemon            Manage background service that allows
                             to spawn new sessions away from your computer
   hapi doctor            System diagnostics & troubleshooting
@@ -95,11 +96,11 @@ ${chalk.bold.cyan('Claude Code Options (from `claude --help`):')}
 `)
 
             try {
-                const claudeHelp = execFileSync(
-                    'claude',
-                    ['--help'],
-                    { encoding: 'utf8', env: withBunRuntimeEnv(), shell: process.platform === 'win32' }
-                )
+                const claudeHelp = execFileSync('claude', ['--help'], {
+                    encoding: 'utf8',
+                    env: withBunRuntimeEnv(),
+                    shell: process.platform === 'win32',
+                })
                 console.log(claudeHelp)
             } catch {
                 console.log(chalk.yellow('Could not retrieve claude help. Make sure claude is installed.'))
@@ -120,11 +121,11 @@ ${chalk.bold.cyan('Claude Code Options (from `claude --help`):')}
             const daemonProcess = spawnHappyCLI(['daemon', 'start-sync'], {
                 detached: true,
                 stdio: 'ignore',
-                env: process.env
+                env: process.env,
             })
             daemonProcess.unref()
 
-            await new Promise(resolve => setTimeout(resolve, 200))
+            await new Promise((resolve) => setTimeout(resolve, 200))
         }
 
         try {
@@ -170,5 +171,5 @@ ${chalk.bold.cyan('Claude Code Options (from `claude --help`):')}
             }
             process.exit(1)
         }
-    }
+    },
 }

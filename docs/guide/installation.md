@@ -26,6 +26,7 @@ brew install tiann/tap/hapi
 ```bash
 npx @twsxtd/hapi
 ```
+
 </details>
 
 <details>
@@ -38,6 +39,7 @@ xattr -d com.apple.quarantine ./hapi
 chmod +x ./hapi
 sudo mv ./hapi /usr/local/bin/
 ```
+
 </details>
 
 <details>
@@ -51,6 +53,7 @@ bun build:single-exe
 
 ./cli/dist/hapi
 ```
+
 </details>
 
 ## Server setup
@@ -60,10 +63,24 @@ The server can be deployed on:
 - **Local desktop** (default) - Run on your development machine
 - **Remote server** - Deploy on a VPS, cloud server, or any machine with network access
 
-Start the server:
+### Default: Public Relay (recommended)
+
+```bash
+hapi server --relay
+```
+
+The terminal displays a URL and QR code. Scan to access from anywhere.
+
+- **End-to-end encrypted** with WireGuard + TLS
+- No configuration needed
+- Works behind NAT, firewalls, and any network
+
+### Local Only
 
 ```bash
 hapi server
+# or
+hapi server --no-relay
 ```
 
 The server listens on `http://localhost:3006` by default.
@@ -84,35 +101,37 @@ On first run, HAPI:
 ├── daemon.state.json  # Daemon process state
 └── logs/             # Log files
 ```
+
 </details>
 
 <details>
 <summary>Environment variables</summary>
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `CLI_API_TOKEN` | Auto-generated | Shared secret for authentication |
-| `HAPI_SERVER_URL` | `http://localhost:3006` | Server URL for CLI |
-| `WEBAPP_PORT` | `3006` | HTTP server port |
-| `HAPI_HOME` | `~/.hapi` | Config directory path |
-| `DB_PATH` | `~/.hapi/hapi.db` | Database file path |
-| `CORS_ORIGINS` | - | Allowed CORS origins |
+| Variable          | Default                 | Description                      |
+| ----------------- | ----------------------- | -------------------------------- |
+| `CLI_API_TOKEN`   | Auto-generated          | Shared secret for authentication |
+| `HAPI_SERVER_URL` | `http://localhost:3006` | Server URL for CLI               |
+| `WEBAPP_PORT`     | `3006`                  | HTTP server port                 |
+| `HAPI_HOME`       | `~/.hapi`               | Config directory path            |
+| `DB_PATH`         | `~/.hapi/hapi.db`       | Database file path               |
+| `CORS_ORIGINS`    | -                       | Allowed CORS origins             |
 
 Codex stall watchdog (CLI):
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `HAPI_CODEX_CONNECT_TIMEOUT_MS` | `60000` | MCP connect timeout in ms |
-| `HAPI_CODEX_STALL_MIN_MS` | `120000` | Minimum stall timeout in ms |
-| `HAPI_CODEX_STALL_THINKING_MS` | `240000` | Stall timeout during thinking in ms |
-| `HAPI_CODEX_STALL_TOOL_MS` | `300000` | Stall timeout during tools in ms |
-| `HAPI_CODEX_STALL_TOOL_ACTIVE_MS` | `600000` | Stall timeout during active tools in ms |
-| `HAPI_CODEX_STALL_PATCH_MS` | `300000` | Stall timeout during patch application in ms |
-| `HAPI_CODEX_STALL_PATCH_ACTIVE_MS` | `600000` | Stall timeout during active patch application in ms |
-| `HAPI_CODEX_STALL_COMPLETE_MS` | `180000` | Stall timeout after completion in ms |
-| `HAPI_CODEX_STALL_CHECK_MS` | `5000` | Stall watchdog interval in ms |
-| `HAPI_CODEX_STALL_RESTART_LIMIT` | `3` | Stall restart limit before cooldown |
-| `HAPI_CODEX_STALL_RESTART_COOLDOWN_MS` | `900000` | Stall restart cooldown in ms |
+| Variable                               | Default  | Description                                         |
+| -------------------------------------- | -------- | --------------------------------------------------- |
+| `HAPI_CODEX_CONNECT_TIMEOUT_MS`        | `60000`  | MCP connect timeout in ms                           |
+| `HAPI_CODEX_STALL_MIN_MS`              | `120000` | Minimum stall timeout in ms                         |
+| `HAPI_CODEX_STALL_THINKING_MS`         | `240000` | Stall timeout during thinking in ms                 |
+| `HAPI_CODEX_STALL_TOOL_MS`             | `300000` | Stall timeout during tools in ms                    |
+| `HAPI_CODEX_STALL_TOOL_ACTIVE_MS`      | `600000` | Stall timeout during active tools in ms             |
+| `HAPI_CODEX_STALL_PATCH_MS`            | `300000` | Stall timeout during patch application in ms        |
+| `HAPI_CODEX_STALL_PATCH_ACTIVE_MS`     | `600000` | Stall timeout during active patch application in ms |
+| `HAPI_CODEX_STALL_COMPLETE_MS`         | `180000` | Stall timeout after completion in ms                |
+| `HAPI_CODEX_STALL_CHECK_MS`            | `5000`   | Stall watchdog interval in ms                       |
+| `HAPI_CODEX_STALL_RESTART_LIMIT`       | `3`      | Stall restart limit before cooldown                 |
+| `HAPI_CODEX_STALL_RESTART_COOLDOWN_MS` | `900000` | Stall restart cooldown in ms                        |
+
 </details>
 
 ## CLI setup
@@ -146,20 +165,20 @@ Each machine gets a unique ID stored in `~/.hapi/settings.json`. This allows:
 
 ## Operations
 
-### Remote access
+### Self-hosted tunnels
 
-If the server is deployed on a machine with a **public IP**, you can access it directly via `http://your-server-ip:3006`. Use HTTPS (via reverse proxy like Nginx or Caddy) for production.
-
-If the server is behind NAT, use one of these options:
+If you prefer not to use the public relay (e.g., for lower latency or self-managed infrastructure), you can use these alternatives:
 
 <details>
-<summary>Cloudflare Tunnel (recommended for NAT)</summary>
+<summary>Cloudflare Tunnel</summary>
 
 https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/
 
 ```bash
 export WEBAPP_URL="https://your-tunnel.trycloudflare.com"
+hapi server
 ```
+
 </details>
 
 <details>
@@ -169,6 +188,7 @@ https://tailscale.com/download
 
 ```bash
 sudo tailscale up
+hapi server
 ```
 
 Access via your Tailscale IP:
@@ -176,14 +196,16 @@ Access via your Tailscale IP:
 ```
 http://100.x.x.x:3006
 ```
+
 </details>
 
 <details>
-<summary>ngrok</summary>
+<summary>Public IP / Reverse Proxy</summary>
 
-```bash
-ngrok http 3006
-```
+If the server has a public IP, access directly via `http://your-server-ip:3006`.
+
+Use HTTPS (via Nginx, Caddy, etc.) for production.
+
 </details>
 
 ### Telegram setup
@@ -232,4 +254,5 @@ With the daemon running:
 ```bash
 ufw allow from 192.168.1.0/24 to any port 3006
 ```
+
 </details>
