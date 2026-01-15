@@ -659,7 +659,7 @@ export function HappyComposer(props: {
                                 disabled={controlsDisabled}
                                 minRows={2}
                                 maxRows={10}
-                                submitOnEnter
+                                submitOnEnter={!isTouch}
                                 cancelOnEscape={false}
                                 onChange={handleChange}
                                 onSelect={handleSelect}
