@@ -61,9 +61,7 @@ export default {
     // Session actions
     'session.action.rename': '重命名',
     'session.action.archive': '归档',
-    'session.action.restore': '恢复',
     'session.action.delete': '删除',
-    'session.action.closeAndNew': '关闭并新建',
     'session.action.copy': '复制',
 
     // Dialogs
@@ -78,23 +76,10 @@ export default {
     'dialog.archive.confirm': '归档',
     'dialog.archive.confirming': '归档中…',
 
-    'dialog.restore.title': '恢复会话',
-    'dialog.restore.description': '恢复 "{name}" 并重新连接该会话？',
-    'dialog.restore.confirm': '恢复',
-    'dialog.restore.confirming': '恢复中…',
-
     'dialog.delete.title': '删除会话',
     'dialog.delete.description': '确定要删除 "{name}" 吗？此操作无法撤销。',
     'dialog.delete.confirm': '删除',
     'dialog.delete.confirming': '删除中…',
-    'dialog.closeAndNew.title': '关闭当前会话并新建？',
-    'dialog.closeAndNew.description': '将断开当前会话，并跳转到新建会话页面。',
-    'dialog.closeAndNew.confirm': '关闭并新建',
-    'dialog.closeAndNew.confirming': '关闭中…',
-    'dialog.newSession.cancel.title': '取消创建会话？',
-    'dialog.newSession.cancel.description': '会话尚未创建，确定要离开吗？',
-    'dialog.newSession.cancel.confirm': '离开',
-    'dialog.newSession.cancel.confirming': '离开中…',
     'dialog.error.default': '操作失败，请重试。',
 
     // Common buttons
@@ -202,13 +187,10 @@ export default {
 
     // Composer buttons
     'composer.settings': '设置',
-    'composer.tools': '工具',
     'composer.terminal': '终端',
-    'composer.terminalConfirm': '再次确认打开终端',
     'composer.abort': '中止',
-    'composer.abortConfirm': '再次确认中止',
-    'composer.filesConfirm': '再次确认打开文件',
     'composer.switchRemote': '切换到远程模式',
+    'composer.attach': '添加文件',
     'composer.send': '发送',
 
     // Banners

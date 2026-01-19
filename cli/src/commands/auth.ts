@@ -19,9 +19,9 @@ export async function handleAuthCommand(args: string[]): Promise<void> {
         const envToken = process.env.CLI_API_TOKEN
         const settingsToken = settings.cliApiToken
         const hasToken = Boolean(envToken || settingsToken)
-        const tokenSource = envToken ? 'environment' : (settingsToken ? 'settings file' : 'none')
+        const tokenSource = envToken ? 'environment' : settingsToken ? 'settings file' : 'none'
         console.log(chalk.bold('\nDirect Connect Status\n'))
-        console.log(chalk.gray(`  HAPI_SERVER_URL: ${configuration.serverUrl}`))
+        console.log(chalk.gray(`  HAPI_API_URL: ${configuration.apiUrl}`))
         console.log(chalk.gray(`  CLI_API_TOKEN: ${hasToken ? 'set' : 'missing'}`))
         console.log(chalk.gray(`  Token Source: ${tokenSource}`))
         console.log(chalk.gray(`  Machine ID: ${settings.machineId ?? 'not set'}`))
@@ -56,9 +56,9 @@ export async function handleAuthCommand(args: string[]): Promise<void> {
                 process.exit(1)
             }
 
-            await updateSettings(current => ({
+            await updateSettings((current) => ({
                 ...current,
-                cliApiToken: token.trim()
+                cliApiToken: token.trim(),
             }))
             configuration._setCliApiToken(token.trim())
             console.log(chalk.green(`\nToken saved to ${configuration.settingsFile}`))
@@ -69,9 +69,9 @@ export async function handleAuthCommand(args: string[]): Promise<void> {
     }
 
     if (subcommand === 'logout') {
-        await updateSettings(current => ({
+        await updateSettings((current) => ({
             ...current,
-            cliApiToken: undefined
+            cliApiToken: undefined,
         }))
         await clearMachineId()
         console.log(chalk.green('Cleared local credentials (token and machineId).'))
@@ -113,5 +113,5 @@ export const authCommand: CommandDefinition = {
             }
             process.exit(1)
         }
-    }
+    },
 }

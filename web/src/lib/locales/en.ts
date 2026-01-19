@@ -61,9 +61,7 @@ export default {
     // Session actions
     'session.action.rename': 'Rename',
     'session.action.archive': 'Archive',
-    'session.action.restore': 'Restore',
     'session.action.delete': 'Delete',
-    'session.action.closeAndNew': 'Close & New',
     'session.action.copy': 'Copy',
 
     // Dialogs
@@ -76,23 +74,10 @@ export default {
     'dialog.archive.description': 'Are you sure you want to archive "{name}"? This will disconnect active session.',
     'dialog.archive.confirm': 'Archive',
     'dialog.archive.confirming': 'Archiving…',
-    'dialog.restore.title': 'Restore Session',
-    'dialog.restore.description': 'Restore "{name}" and reconnect to the session?',
-    'dialog.restore.confirm': 'Restore',
-    'dialog.restore.confirming': 'Restoring…',
     'dialog.delete.title': 'Delete Session',
     'dialog.delete.description': 'Are you sure you want to delete "{name}"? This action cannot be undone.',
     'dialog.delete.confirm': 'Delete',
     'dialog.delete.confirming': 'Deleting…',
-    'dialog.closeAndNew.title': 'Close session and start a new one?',
-    'dialog.closeAndNew.description':
-        'This will disconnect the current session and take you to the new session screen.',
-    'dialog.closeAndNew.confirm': 'Close & New',
-    'dialog.closeAndNew.confirming': 'Closing…',
-    'dialog.newSession.cancel.title': 'Cancel session setup?',
-    'dialog.newSession.cancel.description': 'Your session has not been created. Are you sure you want to leave?',
-    'dialog.newSession.cancel.confirm': 'Leave',
-    'dialog.newSession.cancel.confirming': 'Leaving…',
     'dialog.error.default': 'Operation failed. Please try again.',
 
     // Common buttons
@@ -200,13 +185,10 @@ export default {
 
     // Composer buttons
     'composer.settings': 'Settings',
-    'composer.tools': 'Tools',
     'composer.terminal': 'Terminal',
-    'composer.terminalConfirm': 'Confirm open terminal',
     'composer.abort': 'Abort',
-    'composer.abortConfirm': 'Confirm abort',
-    'composer.filesConfirm': 'Confirm open files',
     'composer.switchRemote': 'Switch to remote mode',
+    'composer.attach': 'Attach file',
     'composer.send': 'Send',
 
     // Banners

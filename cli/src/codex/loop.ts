@@ -1,39 +1,39 @@
-import { MessageQueue2 } from '@/utils/MessageQueue2';
-import { logger } from '@/ui/logger';
-import { runLocalRemoteSession } from '@/agent/loopBase';
-import { CodexSession } from './session';
-import { codexLocalLauncher } from './codexLocalLauncher';
-import { codexRemoteLauncher } from './codexRemoteLauncher';
-import { ApiClient, ApiSessionClient } from '@/lib';
-import type { CodexCliOverrides } from './utils/codexCliOverrides';
-import type { CodexPermissionMode } from '@hapi/protocol/types';
+import { MessageQueue2 } from '@/utils/MessageQueue2'
+import { logger } from '@/ui/logger'
+import { runLocalRemoteSession } from '@/agent/loopBase'
+import { CodexSession } from './session'
+import { codexLocalLauncher } from './codexLocalLauncher'
+import { codexRemoteLauncher } from './codexRemoteLauncher'
+import { ApiClient, ApiSessionClient } from '@/lib'
+import type { CodexCliOverrides } from './utils/codexCliOverrides'
+import type { CodexPermissionMode } from '@hapi/protocol/types'
 
-export type PermissionMode = CodexPermissionMode;
+export type PermissionMode = CodexPermissionMode
 
 export interface EnhancedMode {
-    permissionMode: PermissionMode;
-    model?: string;
+    permissionMode: PermissionMode
+    model?: string
 }
 
 interface LoopOptions {
-    path: string;
-    startingMode?: 'local' | 'remote';
-    startedBy?: 'daemon' | 'terminal';
-    onModeChange: (mode: 'local' | 'remote') => void;
-    messageQueue: MessageQueue2<EnhancedMode>;
-    session: ApiSessionClient;
-    api: ApiClient;
-    codexArgs?: string[];
-    codexCliOverrides?: CodexCliOverrides;
-    permissionMode?: PermissionMode;
-    resumeSessionId?: string;
-    onSessionReady?: (session: CodexSession) => void;
+    path: string
+    startingMode?: 'local' | 'remote'
+    startedBy?: 'runner' | 'terminal'
+    onModeChange: (mode: 'local' | 'remote') => void
+    messageQueue: MessageQueue2<EnhancedMode>
+    session: ApiSessionClient
+    api: ApiClient
+    codexArgs?: string[]
+    codexCliOverrides?: CodexCliOverrides
+    permissionMode?: PermissionMode
+    resumeSessionId?: string
+    onSessionReady?: (session: CodexSession) => void
 }
 
 export async function loop(opts: LoopOptions): Promise<void> {
-    const logPath = logger.getLogPath();
-    const startedBy = opts.startedBy ?? 'terminal';
-    const startingMode = opts.startingMode ?? 'local';
+    const logPath = logger.getLogPath()
+    const startedBy = opts.startedBy ?? 'terminal'
+    const startingMode = opts.startingMode ?? 'local'
     const session = new CodexSession({
         api: opts.api,
         client: opts.session,
@@ -47,8 +47,8 @@ export async function loop(opts: LoopOptions): Promise<void> {
         startingMode,
         codexArgs: opts.codexArgs,
         codexCliOverrides: opts.codexCliOverrides,
-        permissionMode: opts.permissionMode ?? 'default'
-    });
+        permissionMode: opts.permissionMode ?? 'default',
+    })
 
     await runLocalRemoteSession({
         session,
@@ -56,6 +56,6 @@ export async function loop(opts: LoopOptions): Promise<void> {
         logTag: 'codex-loop',
         runLocal: codexLocalLauncher,
         runRemote: codexRemoteLauncher,
-        onSessionReady: opts.onSessionReady
-    });
+        onSessionReady: opts.onSessionReady,
+    })
 }

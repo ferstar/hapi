@@ -20,11 +20,12 @@ import {
     type CanUseToolControlResponse,
     type ControlCancelRequest,
     type PermissionResult,
-    AbortError
+    AbortError,
 } from './types'
 import { getDefaultClaudeCodePath, logDebug, streamToStdin } from './utils'
 import { withBunRuntimeEnv } from '@/utils/bunRuntime'
 import { killProcessByChildProcess } from '@/utils/process'
+import { stripNewlinesForWindowsShellArg } from '@/utils/shellEscape'
 import type { Writable } from 'node:stream'
 import { logger } from '@/ui/logger'
 import { appendMcpConfigArg } from '../utils/mcpConfig'
@@ -142,9 +143,12 @@ export class Query implements AsyncIterableIterator<SDKMessage> {
             throw new Error('Interrupt requires --input-format stream-json')
         }
 
-        await this.request({
-            subtype: 'interrupt'
-        }, this.childStdin)
+        await this.request(
+            {
+                subtype: 'interrupt',
+            },
+            this.childStdin
+        )
     }
 
     /**
@@ -155,7 +159,7 @@ export class Query implements AsyncIterableIterator<SDKMessage> {
         const sdkRequest: SDKControlRequest = {
             request_id: requestId,
             type: 'control_request',
-            request
+            request,
         }
 
         return new Promise((resolve, reject) => {
@@ -191,8 +195,8 @@ export class Query implements AsyncIterableIterator<SDKMessage> {
                 response: {
                     subtype: 'success',
                     request_id: request.request_id,
-                    response
-                }
+                    response,
+                },
             }
             this.childStdin.write(JSON.stringify(controlResponse) + '\n')
         } catch (error) {
@@ -201,8 +205,8 @@ export class Query implements AsyncIterableIterator<SDKMessage> {
                 response: {
                     subtype: 'error',
                     request_id: request.request_id,
-                    error: error instanceof Error ? error.message : String(error)
-                }
+                    error: error instanceof Error ? error.message : String(error),
+                },
             }
             this.childStdin.write(JSON.stringify(controlErrorResponse) + '\n')
         } finally {
@@ -226,16 +230,19 @@ export class Query implements AsyncIterableIterator<SDKMessage> {
      * Process control requests based on subtype
      * Replicates the exact logic from the SDK's processControlRequest method
      */
-    private async processControlRequest(request: CanUseToolControlRequest, signal: AbortSignal): Promise<PermissionResult> {
+    private async processControlRequest(
+        request: CanUseToolControlRequest,
+        signal: AbortSignal
+    ): Promise<PermissionResult> {
         if (request.request.subtype === 'can_use_tool') {
             if (!this.canCallTool) {
                 throw new Error('canCallTool callback is not provided.')
             }
             return this.canCallTool(request.request.tool_name, request.request.input, {
-                signal
+                signal,
             })
         }
-        
+
         throw new Error('Unsupported control request subtype: ' + request.request.subtype)
     }
 
@@ -253,13 +260,11 @@ export class Query implements AsyncIterableIterator<SDKMessage> {
 /**
  * Main query function to interact with Claude Code
  */
-export function query(config: {
-    prompt: QueryPrompt
-    options?: QueryOptions
-}): Query {
+export function query(config: { prompt: QueryPrompt; options?: QueryOptions }): Query {
     const {
         prompt,
         options: {
+            additionalDirectories = [],
             allowedTools = [],
             appendSystemPrompt,
             customSystemPrompt,
@@ -275,8 +280,8 @@ export function query(config: {
             fallbackModel,
             settingsPath,
             strictMcpConfig,
-            canCallTool
-        } = {}
+            canCallTool,
+        } = {},
     } = config
 
     // Set entrypoint if not already set
@@ -288,13 +293,15 @@ export function query(config: {
     const args = ['--output-format', 'stream-json', '--verbose']
     let cleanupMcpConfig: (() => void) | null = null
 
-    if (customSystemPrompt) args.push('--system-prompt', customSystemPrompt)
-    if (appendSystemPrompt) args.push('--append-system-prompt', appendSystemPrompt)
+    if (customSystemPrompt) args.push('--system-prompt', stripNewlinesForWindowsShellArg(customSystemPrompt))
+    if (appendSystemPrompt) args.push('--append-system-prompt', stripNewlinesForWindowsShellArg(appendSystemPrompt))
     if (maxTurns) args.push('--max-turns', maxTurns.toString())
     if (model) args.push('--model', model)
     if (canCallTool) {
         if (typeof prompt === 'string') {
-            throw new Error('canCallTool callback requires --input-format stream-json. Please set prompt as an AsyncIterable.')
+            throw new Error(
+                'canCallTool callback requires --input-format stream-json. Please set prompt as an AsyncIterable.'
+            )
         }
         args.push('--permission-prompt-tool', 'stdio')
     }
@@ -303,19 +310,22 @@ export function query(config: {
     if (settingsPath) args.push('--settings', settingsPath)
     if (allowedTools.length > 0) args.push('--allowedTools', allowedTools.join(','))
     if (disallowedTools.length > 0) args.push('--disallowedTools', disallowedTools.join(','))
+    if (additionalDirectories.length > 0) args.push('--add-dir', ...additionalDirectories)
     if (strictMcpConfig) args.push('--strict-mcp-config')
     if (permissionMode) args.push('--permission-mode', permissionMode)
 
     if (fallbackModel) {
         if (model && fallbackModel === model) {
-            throw new Error('Fallback model cannot be the same as the main model. Please specify a different model for fallbackModel option.')
+            throw new Error(
+                'Fallback model cannot be the same as the main model. Please specify a different model for fallbackModel option.'
+            )
         }
         args.push('--fallback-model', fallbackModel)
     }
 
     // Handle prompt input
     if (typeof prompt === 'string') {
-        args.push('--print', prompt.trim())
+        args.push('--print', stripNewlinesForWindowsShellArg(prompt.trim()))
     } else {
         args.push('--input-format', 'stream-json')
     }
@@ -324,10 +334,12 @@ export function query(config: {
     // - If it's just 'claude' command → spawn('claude', args) with shell on Windows
     // - If it's a full path to binary or script → spawn(path, args)
     const isCommandOnly = pathToClaudeCodeExecutable === 'claude'
-    
+
     // Validate executable path (skip for command-only mode)
     if (!isCommandOnly && !existsSync(pathToClaudeCodeExecutable)) {
-        throw new ReferenceError(`Claude Code executable not found at ${pathToClaudeCodeExecutable}. Is options.pathToClaudeCodeExecutable set?`)
+        throw new ReferenceError(
+            `Claude Code executable not found at ${pathToClaudeCodeExecutable}. Is options.pathToClaudeCodeExecutable set?`
+        )
     }
 
     const spawnCommand = pathToClaudeCodeExecutable
@@ -345,7 +357,7 @@ export function query(config: {
         signal: config.options?.abort,
         env: spawnEnv,
         // Use shell on Windows for command resolution
-        shell: process.platform === 'win32'
+        shell: process.platform === 'win32',
     }) as ChildProcessWithoutNullStreams
 
     // Handle stdin

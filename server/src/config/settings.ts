@@ -5,7 +5,7 @@ import { dirname, join } from 'node:path'
 export interface Settings {
     machineId?: string
     machineIdConfirmedByServer?: boolean
-    daemonAutoStartWhenRunningHappy?: boolean
+    runnerAutoStartWhenRunningHappy?: boolean
     cliApiToken?: string
     vapidKeys?: {
         publicKey: string
@@ -14,18 +14,14 @@ export interface Settings {
     // Server configuration (persisted from environment variables)
     telegramBotToken?: string
     telegramNotification?: boolean
-    telegramNotificationVisibleWindowMs?: number
-    telegramNotificationRetryBaseDelayMs?: number
-    telegramNotificationRetryMaxAttempts?: number
-    pushNotificationVisibleWindowMs?: number
-    pushNotificationRetryBaseDelayMs?: number
-    pushNotificationRetryMaxAttempts?: number
-    sseHeartbeatMs?: number
-    webIdleTimeoutMs?: number
+    listenHost?: string
+    listenPort?: number
+    publicUrl?: string
+    corsOrigins?: string[]
+    // Legacy field names (for migration, read-only)
     webappHost?: string
     webappPort?: number
     webappUrl?: string
-    corsOrigins?: string[]
 }
 
 export function getSettingsFile(dataDir: string): string {
@@ -53,9 +49,7 @@ export async function readSettings(settingsFile: string): Promise<Settings | nul
 export async function readSettingsOrThrow(settingsFile: string): Promise<Settings> {
     const settings = await readSettings(settingsFile)
     if (settings === null) {
-        throw new Error(
-            `Cannot read ${settingsFile}. Please fix or remove the file and restart.`
-        )
+        throw new Error(`Cannot read ${settingsFile}. Please fix or remove the file and restart.`)
     }
     return settings
 }

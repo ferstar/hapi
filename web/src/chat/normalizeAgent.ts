@@ -13,16 +13,17 @@ function normalizeToolResultPermissions(value: unknown): ToolResultPermission | 
         ? value.allowedTools.filter((tool) => typeof tool === 'string')
         : undefined
     const decision = value.decision
-    const normalizedDecision = decision === 'approved' || decision === 'approved_for_session' || decision === 'denied' || decision === 'abort'
-        ? decision
-        : undefined
+    const normalizedDecision =
+        decision === 'approved' || decision === 'approved_for_session' || decision === 'denied' || decision === 'abort'
+            ? decision
+            : undefined
 
     return {
         date,
         result,
         mode,
         allowedTools,
-        decision: normalizedDecision
+        decision: normalizedDecision,
     }
 }
 
@@ -82,13 +83,16 @@ function normalizeAssistantOutput(
         isSidechain,
         content: blocks,
         meta,
-        usage: inputTokens !== null && outputTokens !== null ? {
-            input_tokens: inputTokens,
-            output_tokens: outputTokens,
-            cache_creation_input_tokens: asNumber(usage?.cache_creation_input_tokens) ?? undefined,
-            cache_read_input_tokens: asNumber(usage?.cache_read_input_tokens) ?? undefined,
-            service_tier: asString(usage?.service_tier) ?? undefined
-        } : undefined
+        usage:
+            inputTokens !== null && outputTokens !== null
+                ? {
+                      input_tokens: inputTokens,
+                      output_tokens: outputTokens,
+                      cache_creation_input_tokens: asNumber(usage?.cache_creation_input_tokens) ?? undefined,
+                      cache_read_input_tokens: asNumber(usage?.cache_read_input_tokens) ?? undefined,
+                      service_tier: asString(usage?.service_tier) ?? undefined,
+                  }
+                : undefined,
     }
 }
 
@@ -115,7 +119,7 @@ function normalizeUserOutput(
             createdAt,
             role: 'agent',
             isSidechain: true,
-            content: [{ type: 'sidechain', uuid, prompt: messageContent }]
+            content: [{ type: 'sidechain', uuid, prompt: messageContent }],
         }
     }
 
@@ -127,7 +131,7 @@ function normalizeUserOutput(
             role: 'user',
             isSidechain: false,
             content: { type: 'text', text: messageContent },
-            meta
+            meta,
         }
     }
 
@@ -143,7 +147,8 @@ function normalizeUserOutput(
             if (block.type === 'tool_result' && typeof block.tool_use_id === 'string') {
                 const isError = Boolean(block.is_error)
                 const rawContent = 'content' in block ? (block as Record<string, unknown>).content : undefined
-                const embeddedToolUseResult = 'toolUseResult' in data ? (data as Record<string, unknown>).toolUseResult : null
+                const embeddedToolUseResult =
+                    'toolUseResult' in data ? (data as Record<string, unknown>).toolUseResult : null
 
                 const permissions = normalizeToolResultPermissions(block.permissions)
 
@@ -154,7 +159,7 @@ function normalizeUserOutput(
                     is_error: isError,
                     uuid,
                     parentUUID,
-                    permissions
+                    permissions,
                 })
             }
         }
@@ -167,7 +172,7 @@ function normalizeUserOutput(
         role: 'agent',
         isSidechain,
         content: blocks,
-        meta
+        meta,
     }
 }
 
@@ -213,7 +218,7 @@ export function normalizeAgentRecord(
                 role: 'agent',
                 isSidechain: false,
                 content: [{ type: 'summary', summary: data.summary }],
-                meta
+                meta,
             }
         }
         if (data.type === 'system' && data.subtype === 'api_error') {
@@ -226,10 +231,24 @@ export function normalizeAgentRecord(
                     type: 'api-error',
                     retryAttempt: asNumber(data.retryAttempt) ?? 0,
                     maxRetries: asNumber(data.maxRetries) ?? 0,
-                    error: data.error
+                    error: data.error,
                 },
                 isSidechain: false,
-                meta
+                meta,
+            }
+        }
+        if (data.type === 'system' && data.subtype === 'turn_duration') {
+            return {
+                id: messageId,
+                localId,
+                createdAt,
+                role: 'event',
+                content: {
+                    type: 'turn-duration',
+                    durationMs: asNumber(data.durationMs) ?? 0,
+                },
+                isSidechain: false,
+                meta,
             }
         }
         return null
@@ -245,7 +264,7 @@ export function normalizeAgentRecord(
             role: 'event',
             content: event,
             isSidechain: false,
-            meta
+            meta,
         }
     }
 
@@ -261,7 +280,7 @@ export function normalizeAgentRecord(
                 role: 'agent',
                 isSidechain: false,
                 content: [{ type: 'text', text: data.message, uuid: messageId, parentUUID: null }],
-                meta
+                meta,
             }
         }
 
@@ -273,7 +292,7 @@ export function normalizeAgentRecord(
                 role: 'agent',
                 isSidechain: false,
                 content: [{ type: 'reasoning', text: data.message, uuid: messageId, parentUUID: null }],
-                meta
+                meta,
             }
         }
 
@@ -285,16 +304,18 @@ export function normalizeAgentRecord(
                 createdAt,
                 role: 'agent',
                 isSidechain: false,
-                content: [{
-                    type: 'tool-call',
-                    id: data.callId,
-                    name: asString(data.name) ?? 'unknown',
-                    input: data.input,
-                    description: null,
-                    uuid,
-                    parentUUID: null
-                }],
-                meta
+                content: [
+                    {
+                        type: 'tool-call',
+                        id: data.callId,
+                        name: asString(data.name) ?? 'unknown',
+                        input: data.input,
+                        description: null,
+                        uuid,
+                        parentUUID: null,
+                    },
+                ],
+                meta,
             }
         }
 
@@ -306,15 +327,17 @@ export function normalizeAgentRecord(
                 createdAt,
                 role: 'agent',
                 isSidechain: false,
-                content: [{
-                    type: 'tool-result',
-                    tool_use_id: data.callId,
-                    content: data.output,
-                    is_error: false,
-                    uuid,
-                    parentUUID: null
-                }],
-                meta
+                content: [
+                    {
+                        type: 'tool-result',
+                        tool_use_id: data.callId,
+                        content: data.output,
+                        is_error: false,
+                        uuid,
+                        parentUUID: null,
+                    },
+                ],
+                meta,
             }
         }
     }

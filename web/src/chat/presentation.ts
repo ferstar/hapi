@@ -7,6 +7,14 @@ export function formatUnixTimestamp(value: number): string {
     return date.toLocaleString()
 }
 
+function formatDuration(ms: number): string {
+    const seconds = ms / 1000
+    if (seconds < 60) return `${seconds.toFixed(1)}s`
+    const mins = Math.floor(seconds / 60)
+    const secs = Math.round(seconds % 60)
+    return `${mins}m ${secs}s`
+}
+
 export type EventPresentation = {
     icon: string | null
     text: string
@@ -41,10 +49,17 @@ export function getEventPresentation(event: AgentEvent): EventPresentation {
     }
     if (event.type === 'limit-reached') {
         const endsAt = typeof event.endsAt === 'number' ? event.endsAt : null
-        return { icon: '⏳', text: endsAt ? `Usage limit reached until ${formatUnixTimestamp(endsAt)}` : 'Usage limit reached' }
+        return {
+            icon: '⏳',
+            text: endsAt ? `Usage limit reached until ${formatUnixTimestamp(endsAt)}` : 'Usage limit reached',
+        }
     }
     if (event.type === 'message') {
         return { icon: null, text: typeof event.message === 'string' ? event.message : 'Message' }
+    }
+    if (event.type === 'turn-duration') {
+        const ms = typeof event.durationMs === 'number' ? event.durationMs : 0
+        return { icon: '⏱️', text: `Turn: ${formatDuration(ms)}` }
     }
     try {
         return { icon: null, text: JSON.stringify(event) }

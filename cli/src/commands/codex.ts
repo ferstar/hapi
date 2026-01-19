@@ -1,5 +1,4 @@
 import chalk from 'chalk'
-import { z } from 'zod'
 import { authAndSetupMachineIfNeeded } from '@/ui/auth'
 import { initializeToken } from '@/ui/tokenInit'
 import { maybeAutoStartServer } from '@/utils/autoStartServer'
@@ -14,11 +13,9 @@ export const codexCommand: CommandDefinition = {
             const { runCodex } = await import('@/codex/runCodex')
 
             const options: {
-                startedBy?: 'daemon' | 'terminal'
+                startedBy?: 'runner' | 'terminal'
                 codexArgs?: string[]
                 permissionMode?: CodexPermissionMode
-                forceNewSession?: boolean
-                sessionTag?: string
                 resumeSessionId?: string
             } = {}
             const unknownArgs: string[] = []
@@ -35,21 +32,7 @@ export const codexCommand: CommandDefinition = {
                     continue
                 }
                 if (arg === '--started-by') {
-                    options.startedBy = commandArgs[++i] as 'daemon' | 'terminal'
-                } else if (arg === '--resume') {
-                    options.resumeSessionId = z.string().min(1).parse(commandArgs[++i])
-                } else if (arg === '--session-tag') {
-                    options.sessionTag = z.string().min(1).parse(commandArgs[++i])
-                } else if (arg === 'resume') {
-                    const resumeId = commandArgs[i + 1]
-                    if (resumeId && !resumeId.startsWith('-')) {
-                        options.resumeSessionId = z.string().min(1).parse(resumeId)
-                        i += 1
-                    } else {
-                        unknownArgs.push(arg)
-                    }
-                } else if (arg === '--new-session') {
-                    options.forceNewSession = true
+                    options.startedBy = commandArgs[++i] as 'runner' | 'terminal'
                 } else if (arg === '--yolo' || arg === '--dangerously-bypass-approvals-and-sandbox') {
                     options.permissionMode = 'yolo'
                     unknownArgs.push(arg)

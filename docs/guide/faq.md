@@ -29,17 +29,20 @@ HAPI includes an embedded server. Just run `hapi server` on your machine - no ex
 ### How do I access HAPI from my phone?
 
 For local network access:
+
 ```
 http://<your-computer-ip>:3006
 ```
 
 For internet access:
+
 - If the server has a public IP, access it directly (use HTTPS via reverse proxy for production)
 - If behind NAT, set up a tunnel (Cloudflare Tunnel, Tailscale, or ngrok)
 
 ### What's the access token for?
 
 The `CLI_API_TOKEN` is a shared secret that authenticates:
+
 - CLI connections to the server
 - Web app logins
 - Telegram account binding
@@ -72,15 +75,16 @@ HAPI supports two methods:
 
 ### Can I start sessions remotely?
 
-Yes, with daemon mode:
+Yes, with runner mode:
 
-1. Run `hapi daemon start` on your computer
+1. Run `hapi runner start` on your computer
 2. Your machine appears in the "Machines" list in the web app
 3. Tap to spawn new sessions from anywhere
 
 ### How do I see what files were changed?
 
 In the session view, tap the "Files" tab to:
+
 - Browse project files
 - View git status
 - See diffs of changed files
@@ -94,6 +98,7 @@ Yes. Open any session and use the chat interface to send messages directly to th
 ### Is my data safe?
 
 Yes. HAPI is local-first:
+
 - All data stays on your machine
 - Nothing is uploaded to external servers
 - The database is stored locally in `~/.hapi/`
@@ -105,6 +110,7 @@ The auto-generated token is 256-bit (cryptographically secure). For external acc
 ### Can others access my HAPI instance?
 
 Only if they have your access token. For additional security:
+
 - Use a strong, unique token
 - Always use HTTPS for external access
 - Consider Tailscale for private networking
@@ -115,7 +121,7 @@ Only if they have your access token. For additional security:
 
 - Ensure server is running: `hapi server`
 - Check firewall allows port 3006
-- Verify `HAPI_SERVER_URL` is correct
+- Verify `HAPI_API_URL` is correct
 
 ### "Invalid token" error
 
@@ -123,22 +129,23 @@ Only if they have your access token. For additional security:
 - Check token matches in CLI and server
 - Verify `~/.hapi/settings.json` has correct `cliApiToken`
 
-### Daemon won't start
+### Runner won't start
 
 ```bash
 # Check status
-hapi daemon status
+hapi runner status
 
 # Clear stale lock file
-rm ~/.hapi/daemon.state.json.lock
+rm ~/.hapi/runner.state.json.lock
 
 # Check logs
-hapi daemon logs
+hapi runner logs
 ```
 
 ### Claude Code not found
 
 Install Claude Code or set custom path:
+
 ```bash
 npm install -g @anthropic-ai/claude-code
 # or
@@ -157,30 +164,31 @@ This checks server connectivity, token validity, agent availability, and more.
 
 ### HAPI vs Happy
 
-| Aspect | Happy | HAPI |
-|--------|-------|------|
-| Design | Cloud-first | Local-first |
-| Users | Multi-user | Single user |
-| Deployment | Multiple services | Single binary |
-| Data | Encrypted on server | Never leaves your machine |
+| Aspect     | Happy               | HAPI                      |
+| ---------- | ------------------- | ------------------------- |
+| Design     | Cloud-first         | Local-first               |
+| Users      | Multi-user          | Single user               |
+| Deployment | Multiple services   | Single binary             |
+| Data       | Encrypted on server | Never leaves your machine |
 
 See [Why HAPI](./why-hapi.md) for detailed comparison.
 
 ### HAPI vs running Claude Code directly
 
-| Feature | Claude Code | HAPI + Claude Code |
-|---------|-------------|-------------------|
-| Remote access | No | Yes |
-| Mobile control | No | Yes |
-| Permission approval | Terminal only | Phone/web |
-| Session persistence | No | Yes |
-| Multi-machine | Manual | Built-in |
+| Feature             | Claude Code   | HAPI + Claude Code |
+| ------------------- | ------------- | ------------------ |
+| Remote access       | No            | Yes                |
+| Mobile control      | No            | Yes                |
+| Permission approval | Terminal only | Phone/web          |
+| Session persistence | No            | Yes                |
+| Multi-machine       | Manual        | Built-in           |
 
 ## Contributing
 
 ### How can I contribute?
 
 Visit our [GitHub repository](https://github.com/tiann/hapi) to:
+
 - Report issues
 - Submit pull requests
 - Suggest features

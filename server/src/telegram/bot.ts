@@ -5,17 +5,13 @@
  * All interactive features are handled by the Telegram Mini App.
  */
 
-import { basename } from 'node:path'
 import { Bot, Context, InlineKeyboard } from 'grammy'
 import { SyncEngine, Session } from '../sync/syncEngine'
 import { handleCallback, CallbackContext } from './callbacks'
-import { formatSessionNotification, createNotificationKeyboard, buildMiniAppDeepLink } from './sessionView'
-import { getAgentName, getSessionName } from '../notifications/sessionInfo'
+import { formatSessionNotification, createNotificationKeyboard } from './sessionView'
+import { getAgentName } from '../notifications/sessionInfo'
 import type { NotificationChannel } from '../notifications/notificationTypes'
 import type { Store } from '../store'
-import type { SSEManager } from '../sse/sseManager'
-import type { VisibilityTracker } from '../visibility/visibilityTracker'
-import type { TerminalRegistry } from '../socket/terminalRegistry'
 
 export interface BotContext extends Context {
     // Extended context for future use
@@ -24,14 +20,8 @@ export interface BotContext extends Context {
 export interface HappyBotConfig {
     syncEngine: SyncEngine
     botToken: string
-    miniAppUrl: string
+    publicUrl: string
     store: Store
-    terminalRegistry?: TerminalRegistry
-    sseManager?: SSEManager
-    visibilityTracker?: VisibilityTracker
-    recentVisibleWindowMs?: number
-    retryBaseDelayMs?: number
-    retryMaxAttempts?: number
 }
 
 /**
@@ -41,26 +31,13 @@ export class HappyBot implements NotificationChannel {
     private bot: Bot<BotContext>
     private syncEngine: SyncEngine | null = null
     private isRunning = false
-    private readonly miniAppUrl: string
+    private readonly publicUrl: string
     private readonly store: Store
-    private readonly terminalRegistry?: TerminalRegistry
-    private readonly sseManager?: SSEManager
-    private readonly visibilityTracker?: VisibilityTracker
-    private readonly recentVisibleWindowMs: number
-    private readonly retryBaseDelayMs: number
-    private readonly retryMaxAttempts: number
-    private readonly retryStates = new Map<string, { timer: NodeJS.Timeout | null; attempt: number }>()
 
     constructor(config: HappyBotConfig) {
         this.syncEngine = config.syncEngine
-        this.miniAppUrl = config.miniAppUrl
+        this.publicUrl = config.publicUrl
         this.store = config.store
-        this.terminalRegistry = config.terminalRegistry
-        this.sseManager = config.sseManager
-        this.visibilityTracker = config.visibilityTracker
-        this.recentVisibleWindowMs = config.recentVisibleWindowMs ?? 60_000
-        this.retryBaseDelayMs = config.retryBaseDelayMs ?? 30_000
-        this.retryMaxAttempts = config.retryMaxAttempts ?? 3
 
         this.bot = new Bot<BotContext>(config.botToken)
         this.setupMiddleware()
@@ -99,7 +76,7 @@ export class HappyBot implements NotificationChannel {
         this.bot.start({
             onStart: (botInfo) => {
                 console.log(`[HAPIBot] Bot @${botInfo.username} started`)
-            }
+            },
         })
     }
 
@@ -131,18 +108,16 @@ export class HappyBot implements NotificationChannel {
     private setupCommands(): void {
         // /app - Open Telegram Mini App (primary entry point)
         this.bot.command('app', async (ctx) => {
-            const keyboard = new InlineKeyboard().webApp('Open App', this.miniAppUrl)
+            const keyboard = new InlineKeyboard().webApp('Open App', this.publicUrl)
             await ctx.reply('Open HAPI Mini App:', { reply_markup: keyboard })
         })
 
         // /start - Simple welcome with Mini App link
         this.bot.command('start', async (ctx) => {
-            const keyboard = new InlineKeyboard().webApp('Open App', this.miniAppUrl)
-            await ctx.reply(
-                'Welcome to HAPI Bot!\n\n' +
-                'Use the Mini App for full session management.',
-                { reply_markup: keyboard }
-            )
+            const keyboard = new InlineKeyboard().webApp('Open App', this.publicUrl)
+            await ctx.reply('Welcome to HAPI Bot!\n\n' + 'Use the Mini App for full session management.', {
+                reply_markup: keyboard,
+            })
         })
     }
 
@@ -172,9 +147,9 @@ export class HappyBot implements NotificationChannel {
                 },
                 editMessage: async (text, keyboard) => {
                     await ctx.editMessageText(text, {
-                        reply_markup: keyboard
+                        reply_markup: keyboard,
                     })
-                }
+                },
             }
 
             await handleCallback(data, callbackContext)
@@ -212,39 +187,24 @@ export class HappyBot implements NotificationChannel {
             return
         }
 
-        if (this.sseManager?.hasPcConnection(session.namespace)) {
-            console.log(`[Telegram] Suppressed: pc-online namespace=${session.namespace} session=${session.id}`)
-            return
-        }
-
-        if (this.hasRecentVisibleActivity(session.namespace)) {
-            return
-        }
-
-        if (this.terminalRegistry && this.terminalRegistry.countForSession(session.id) > 0) {
-            return
-        }
-
         const agentName = getAgentName(session)
-        const sessionName = getSessionName(session)
-        const directory = session.metadata?.path ? basename(session.metadata.path) : null
-        const url = buildMiniAppDeepLink(this.miniAppUrl, `session_${session.id}`)
-        const lines = [
-            'Session ready.',
-            '',
-            `Agent: ${agentName}`,
-            `Title: ${sessionName}`,
-            directory ? `Directory: ${directory}` : null
-        ].filter((line): line is string => Boolean(line))
-        const message = lines.join('\n')
+        const url = buildMiniAppDeepLink(this.publicUrl, `session_${session.id}`)
+        const keyboard = new InlineKeyboard().webApp('Open Session', url)
 
         const chatIds = this.getBoundChatIds(session.namespace)
         if (chatIds.length === 0) {
             return
         }
 
-        const keyboard = new InlineKeyboard().webApp('Open Session', url)
-        await this.sendWithRetry('ready', session, chatIds, message, keyboard)
+        for (const chatId of chatIds) {
+            try {
+                await this.bot.api.sendMessage(chatId, `It's ready!\n\n${agentName} is waiting for your command`, {
+                    reply_markup: keyboard,
+                })
+            } catch (error) {
+                console.error(`[HAPIBot] Failed to send ready notification to chat ${chatId}:`, error)
+            }
+        }
     }
 
     /**
@@ -255,119 +215,33 @@ export class HappyBot implements NotificationChannel {
             return
         }
 
-        if (this.sseManager?.hasPcConnection(session.namespace)) {
-            console.log(`[Telegram] Suppressed: pc-online namespace=${session.namespace} session=${session.id}`)
-            return
-        }
-
-        if (this.hasRecentVisibleActivity(session.namespace)) {
-            return
-        }
-
         const text = formatSessionNotification(session)
-        const keyboard = createNotificationKeyboard(session, this.miniAppUrl)
+        const keyboard = createNotificationKeyboard(session, this.publicUrl)
 
         const chatIds = this.getBoundChatIds(session.namespace)
         if (chatIds.length === 0) {
             return
         }
 
-        await this.sendWithRetry('permission', session, chatIds, text, keyboard)
-    }
-
-    private hasRecentVisibleActivity(namespace: string): boolean {
-        if (!this.visibilityTracker) {
-            return false
-        }
-        return this.visibilityTracker.hasRecentVisibleConnection(namespace, this.recentVisibleWindowMs)
-    }
-
-    private async sendWithRetry(
-        type: 'permission' | 'ready',
-        session: Session,
-        chatIds: number[],
-        text: string,
-        keyboard?: InlineKeyboard
-    ): Promise<void> {
-        const key = `${type}:${session.id}`
-        this.clearRetry(key)
-
-        console.log(`[Telegram] Send: type=${type} namespace=${session.namespace} session=${session.id} attempt=initial`)
-        await this.sendToChats(chatIds, text, keyboard)
-
-        this.retryStates.set(key, { timer: null, attempt: 0 })
-        this.scheduleRetry(key, type, session, chatIds, text, keyboard)
-    }
-
-    private scheduleRetry(
-        key: string,
-        type: 'permission' | 'ready',
-        session: Session,
-        chatIds: number[],
-        text: string,
-        keyboard?: InlineKeyboard
-    ): void {
-        const state = this.retryStates.get(key)
-        if (!state) {
-            return
-        }
-
-        if (state.attempt >= this.retryMaxAttempts) {
-            this.clearRetry(key)
-            return
-        }
-
-        const delay = this.retryBaseDelayMs * Math.pow(2, state.attempt)
-        state.timer = setTimeout(async () => {
-            if (this.sseManager?.hasPcConnection(session.namespace)) {
-                console.log(`[Telegram] Retry stopped: pc-online namespace=${session.namespace} session=${session.id}`)
-                this.clearRetry(key)
-                return
-            }
-
-            if (this.hasRecentVisibleActivity(session.namespace)) {
-                this.clearRetry(key)
-                return
-            }
-
-            const nextAttempt = state.attempt + 1
-            console.log(
-                `[Telegram] Send: type=${type} namespace=${session.namespace} session=${session.id} attempt=${nextAttempt}/${this.retryMaxAttempts}`
-            )
-            await this.sendToChats(chatIds, this.withAttempt(text, nextAttempt), keyboard)
-
-            const next = this.retryStates.get(key)
-            if (!next) {
-                return
-            }
-
-            next.attempt = nextAttempt
-            this.scheduleRetry(key, type, session, chatIds, text, keyboard)
-        }, delay)
-    }
-
-    private async sendToChats(chatIds: number[], text: string, keyboard?: InlineKeyboard): Promise<void> {
         for (const chatId of chatIds) {
             try {
-                await this.bot.api.sendMessage(chatId, text, keyboard ? { reply_markup: keyboard } : undefined)
+                await this.bot.api.sendMessage(chatId, text, {
+                    reply_markup: keyboard,
+                })
             } catch (error) {
                 console.error(`[HAPIBot] Failed to send notification to chat ${chatId}:`, error)
             }
         }
     }
+}
 
-    private withAttempt(text: string, attempt: number): string {
-        return `${text}\n\nAttempt: ${attempt}/${this.retryMaxAttempts}`
-    }
-
-    private clearRetry(key: string): void {
-        const existing = this.retryStates.get(key)
-        if (!existing) {
-            return
-        }
-        if (existing.timer) {
-            clearTimeout(existing.timer)
-        }
-        this.retryStates.delete(key)
+function buildMiniAppDeepLink(baseUrl: string, startParam: string): string {
+    try {
+        const url = new URL(baseUrl)
+        url.searchParams.set('startapp', startParam)
+        return url.toString()
+    } catch {
+        const separator = baseUrl.includes('?') ? '&' : '?'
+        return `${baseUrl}${separator}startapp=${encodeURIComponent(startParam)}`
     }
 }

@@ -3,7 +3,7 @@ import type {
     Session,
     SessionSummary,
     SyncEvent as ProtocolSyncEvent,
-    WorktreeMetadata
+    WorktreeMetadata,
 } from '@hapi/protocol/types'
 
 export type {
@@ -14,7 +14,7 @@ export type {
     SessionSummary,
     SessionSummaryMetadata,
     TodoItem,
-    WorktreeMetadata
+    WorktreeMetadata,
 } from '@hapi/protocol/types'
 
 export type SessionMetadataSummary = {
@@ -74,9 +74,7 @@ export type RestoreResponse = { sessionId: string }
 export type MachinesResponse = { machines: Machine[] }
 export type MachinePathsExistsResponse = { exists: Record<string, boolean> }
 
-export type SpawnResponse =
-    | { type: 'success'; sessionId: string }
-    | { type: 'error'; message: string }
+export type SpawnResponse = { type: 'success'; sessionId: string } | { type: 'error'; message: string }
 
 export type GitCommandResponse = {
     success: boolean
@@ -105,6 +103,17 @@ export type FileReadResponse = {
     error?: string
 }
 
+export type UploadFileResponse = {
+    success: boolean
+    path?: string
+    error?: string
+}
+
+export type DeleteUploadResponse = {
+    success: boolean
+    error?: string
+}
+
 export type GitFileStatus = {
     fileName: string
     filePath: string
@@ -128,7 +137,7 @@ export type SlashCommand = {
     name: string
     description?: string
     source: 'builtin' | 'user'
-    content?: string  // Expanded content for Codex user prompts
+    content?: string // Expanded content for Codex user prompts
 }
 
 export type SlashCommandsResponse = {
@@ -161,3 +170,12 @@ export type VisibilityPayload = {
 }
 
 export type SyncEvent = ProtocolSyncEvent
+
+export type AttachmentMetadata = {
+    id: string
+    filename: string
+    mimeType: string
+    size: number
+    path: string
+    previewUrl?: string
+}

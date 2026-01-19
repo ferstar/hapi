@@ -14,7 +14,7 @@ export type {
     StoredPushSubscription,
     StoredSession,
     StoredUser,
-    VersionedUpdateResult
+    VersionedUpdateResult,
 } from './types'
 export { MachineStore } from './machineStore'
 export { MessageStore } from './messageStore'
@@ -23,13 +23,7 @@ export { SessionStore } from './sessionStore'
 export { UserStore } from './userStore'
 
 const SCHEMA_VERSION = 2
-const REQUIRED_TABLES = [
-    'sessions',
-    'machines',
-    'messages',
-    'users',
-    'push_subscriptions'
-] as const
+const REQUIRED_TABLES = ['sessions', 'machines', 'messages', 'users', 'push_subscriptions'] as const
 
 export class Store {
     private db: Database
@@ -48,15 +42,13 @@ export class Store {
             mkdirSync(dir, { recursive: true, mode: 0o700 })
             try {
                 chmodSync(dir, 0o700)
-            } catch {
-            }
+            } catch {}
 
             if (!existsSync(dbPath)) {
                 try {
                     const fd = openSync(dbPath, 'a', 0o600)
                     closeSync(fd)
-                } catch {
-                }
+                } catch {}
             }
         }
 
@@ -71,8 +63,7 @@ export class Store {
             for (const path of [dbPath, `${dbPath}-wal`, `${dbPath}-shm`]) {
                 try {
                     chmodSync(path, 0o600)
-                } catch {
-                }
+                } catch {}
             }
         }
 
@@ -85,20 +76,21 @@ export class Store {
 
     private initSchema(): void {
         const currentVersion = this.getUserVersion()
-        const hasExistingTables = this.hasAnyUserTables()
-        if (currentVersion === 0 && !hasExistingTables) {
+        if (currentVersion === 0) {
+            if (this.hasAnyUserTables()) {
+                this.migrateLegacySchemaIfNeeded()
+                this.setUserVersion(SCHEMA_VERSION)
+                return
+            }
+
             this.createSchema()
             this.setUserVersion(SCHEMA_VERSION)
             return
         }
 
-        if (currentVersion === 0 && hasExistingTables) {
-            this.migrateSchema(1)
-            return
-        }
-
-        if (currentVersion < SCHEMA_VERSION) {
-            this.migrateSchema(currentVersion)
+        if (currentVersion === 1 && SCHEMA_VERSION === 2) {
+            this.migrateFromV1ToV2()
+            this.setUserVersion(SCHEMA_VERSION)
             return
         }
 
@@ -126,9 +118,7 @@ export class Store {
                 todos_updated_at INTEGER,
                 active INTEGER DEFAULT 0,
                 active_at INTEGER,
-                seq INTEGER DEFAULT 0,
-                permission_mode TEXT,
-                model_mode TEXT
+                seq INTEGER DEFAULT 0
             );
             CREATE INDEX IF NOT EXISTS idx_sessions_tag ON sessions(tag);
             CREATE INDEX IF NOT EXISTS idx_sessions_tag_namespace ON sessions(tag, namespace);
@@ -140,8 +130,8 @@ export class Store {
                 updated_at INTEGER NOT NULL,
                 metadata TEXT,
                 metadata_version INTEGER DEFAULT 1,
-                daemon_state TEXT,
-                daemon_state_version INTEGER DEFAULT 1,
+                runner_state TEXT,
+                runner_state_version INTEGER DEFAULT 1,
                 active INTEGER DEFAULT 0,
                 active_at INTEGER,
                 seq INTEGER DEFAULT 0
@@ -184,22 +174,97 @@ export class Store {
         `)
     }
 
-    private migrateSchema(currentVersion: number): void {
-        if (currentVersion === 1) {
-            this.migrateFrom1To2()
-            this.setUserVersion(SCHEMA_VERSION)
-            this.assertRequiredTablesPresent()
+    private migrateLegacySchemaIfNeeded(): void {
+        const columns = this.getMachineColumnNames()
+        if (columns.size === 0) {
             return
         }
 
-        throw this.buildSchemaMismatchError(currentVersion)
+        const hasDaemon = columns.has('daemon_state') || columns.has('daemon_state_version')
+        const hasRunner = columns.has('runner_state') || columns.has('runner_state_version')
+
+        if (hasDaemon && hasRunner) {
+            throw new Error(
+                'SQLite schema has both daemon_state and runner_state columns in machines; manual cleanup required.'
+            )
+        }
+
+        if (hasDaemon && !hasRunner) {
+            this.migrateFromV1ToV2()
+        }
     }
 
-    private migrateFrom1To2(): void {
-        this.db.exec(`
-            ALTER TABLE sessions ADD COLUMN permission_mode TEXT;
-            ALTER TABLE sessions ADD COLUMN model_mode TEXT;
-        `)
+    private migrateFromV1ToV2(): void {
+        const columns = this.getMachineColumnNames()
+        if (columns.size === 0) {
+            throw new Error('SQLite schema missing machines table for v1 to v2 migration.')
+        }
+
+        const hasDaemon = columns.has('daemon_state') && columns.has('daemon_state_version')
+        const hasRunner = columns.has('runner_state') && columns.has('runner_state_version')
+
+        if (hasRunner && !hasDaemon) {
+            return
+        }
+
+        if (!hasDaemon) {
+            throw new Error('SQLite schema missing daemon_state columns for v1 to v2 migration.')
+        }
+
+        try {
+            this.db.exec('BEGIN')
+            this.db.exec('ALTER TABLE machines RENAME COLUMN daemon_state TO runner_state')
+            this.db.exec('ALTER TABLE machines RENAME COLUMN daemon_state_version TO runner_state_version')
+            this.db.exec('COMMIT')
+            return
+        } catch (error) {
+            this.db.exec('ROLLBACK')
+        }
+
+        try {
+            this.db.exec('BEGIN')
+            this.db.exec(`
+                CREATE TABLE machines_new (
+                    id TEXT PRIMARY KEY,
+                    namespace TEXT NOT NULL DEFAULT 'default',
+                    created_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL,
+                    metadata TEXT,
+                    metadata_version INTEGER DEFAULT 1,
+                    runner_state TEXT,
+                    runner_state_version INTEGER DEFAULT 1,
+                    active INTEGER DEFAULT 0,
+                    active_at INTEGER,
+                    seq INTEGER DEFAULT 0
+                );
+            `)
+            this.db.exec(`
+                INSERT INTO machines_new (
+                    id, namespace, created_at, updated_at,
+                    metadata, metadata_version,
+                    runner_state, runner_state_version,
+                    active, active_at, seq
+                )
+                SELECT id, namespace, created_at, updated_at,
+                       metadata, metadata_version,
+                       daemon_state, daemon_state_version,
+                       active, active_at, seq
+                FROM machines;
+            `)
+            this.db.exec('DROP TABLE machines')
+            this.db.exec('ALTER TABLE machines_new RENAME TO machines')
+            this.db.exec('CREATE INDEX IF NOT EXISTS idx_machines_namespace ON machines(namespace)')
+            this.db.exec('COMMIT')
+        } catch (error) {
+            this.db.exec('ROLLBACK')
+            const message = error instanceof Error ? error.message : String(error)
+            throw new Error(`SQLite schema migration v1->v2 failed: ${message}`)
+        }
+    }
+
+    private getMachineColumnNames(): Set<string> {
+        const rows = this.db.prepare('PRAGMA table_info(machines)').all() as Array<{ name: string }>
+        return new Set(rows.map((row) => row.name))
     }
 
     private getUserVersion(): number {
@@ -212,37 +277,36 @@ export class Store {
     }
 
     private hasAnyUserTables(): boolean {
-        const row = this.db.prepare(
-            "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' LIMIT 1"
-        ).get() as { name?: string } | undefined
+        const row = this.db
+            .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' LIMIT 1")
+            .get() as { name?: string } | undefined
         return Boolean(row?.name)
     }
 
     private assertRequiredTablesPresent(): void {
         const placeholders = REQUIRED_TABLES.map(() => '?').join(', ')
-        const rows = this.db.prepare(
-            `SELECT name FROM sqlite_master WHERE type = 'table' AND name IN (${placeholders})`
-        ).all(...REQUIRED_TABLES) as Array<{ name: string }>
+        const rows = this.db
+            .prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name IN (${placeholders})`)
+            .all(...REQUIRED_TABLES) as Array<{ name: string }>
         const existing = new Set(rows.map((row) => row.name))
         const missing = REQUIRED_TABLES.filter((table) => !existing.has(table))
 
         if (missing.length > 0) {
             throw new Error(
                 `SQLite schema is missing required tables (${missing.join(', ')}). ` +
-                'Back up and rebuild the database, or run an offline migration to the expected schema version.'
+                    'Back up and rebuild the database, or run an offline migration to the expected schema version.'
             )
         }
     }
 
     private buildSchemaMismatchError(currentVersion: number): Error {
-        const location = (this.dbPath === ':memory:' || this.dbPath.startsWith('file::memory:'))
-            ? 'in-memory database'
-            : this.dbPath
+        const location =
+            this.dbPath === ':memory:' || this.dbPath.startsWith('file::memory:') ? 'in-memory database' : this.dbPath
         return new Error(
             `SQLite schema version mismatch for ${location}. ` +
-            `Expected ${SCHEMA_VERSION}, found ${currentVersion}. ` +
-            'This build does not run compatibility migrations. ' +
-            'Back up and rebuild the database, or run an offline migration to the expected schema version.'
+                `Expected ${SCHEMA_VERSION}, found ${currentVersion}. ` +
+                'This build does not run compatibility migrations. ' +
+                'Back up and rebuild the database, or run an offline migration to the expected schema version.'
         )
     }
 }

@@ -1,50 +1,65 @@
 /**
- * WebSocket client for machine/daemon communication with hapi-server
+ * WebSocket client for machine/runner communication with hapi-server
  */
 
 import { io, type Socket } from 'socket.io-client'
 import { stat } from 'node:fs/promises'
 import { logger } from '@/ui/logger'
 import { configuration } from '@/configuration'
-import type { DaemonState, Machine, MachineMetadata, ServerShutdownPayload, Update, UpdateMachineBody } from './types'
-import { DaemonStateSchema, MachineMetadataSchema } from './types'
+import type { RunnerState, Machine, MachineMetadata, Update, UpdateMachineBody } from './types'
+import { RunnerStateSchema, MachineMetadataSchema } from './types'
 import { backoff } from '@/utils/time'
 import { RpcHandlerManager } from './rpc/RpcHandlerManager'
 import { registerCommonHandlers } from '../modules/common/registerCommonHandlers'
 import type { SpawnSessionOptions, SpawnSessionResult } from '../modules/common/rpcTypes'
 import { applyVersionedAck } from './versionedUpdate'
 
-interface ServerToDaemonEvents {
+interface ServerToRunnerEvents {
     update: (data: Update) => void
     'rpc-request': (data: { method: string; params: string }, callback: (response: string) => void) => void
-    'server-shutdown': (data: ServerShutdownPayload) => void
     error: (data: { message: string }) => void
 }
 
-interface DaemonToServerEvents {
+interface RunnerToServerEvents {
     'machine-alive': (data: { machineId: string; time: number }) => void
-    'machine-update-metadata': (data: { machineId: string; metadata: unknown; expectedVersion: number }, cb: (answer: {
-        result: 'error'
-    } | {
-        result: 'version-mismatch'
-        version: number
-        metadata: unknown | null
-    } | {
-        result: 'success'
-        version: number
-        metadata: unknown | null
-    }) => void) => void
-    'machine-update-state': (data: { machineId: string; daemonState: unknown | null; expectedVersion: number }, cb: (answer: {
-        result: 'error'
-    } | {
-        result: 'version-mismatch'
-        version: number
-        daemonState: unknown | null
-    } | {
-        result: 'success'
-        version: number
-        daemonState: unknown | null
-    }) => void) => void
+    'machine-update-metadata': (
+        data: { machineId: string; metadata: unknown; expectedVersion: number },
+        cb: (
+            answer:
+                | {
+                      result: 'error'
+                  }
+                | {
+                      result: 'version-mismatch'
+                      version: number
+                      metadata: unknown | null
+                  }
+                | {
+                      result: 'success'
+                      version: number
+                      metadata: unknown | null
+                  }
+        ) => void
+    ) => void
+    'machine-update-state': (
+        data: { machineId: string; runnerState: unknown | null; expectedVersion: number },
+        cb: (
+            answer:
+                | {
+                      result: 'error'
+                  }
+                | {
+                      result: 'version-mismatch'
+                      version: number
+                      runnerState: unknown | null
+                  }
+                | {
+                      result: 'success'
+                      version: number
+                      runnerState: unknown | null
+                  }
+        ) => void
+    ) => void
     'rpc-register': (data: { method: string }) => void
     'rpc-unregister': (data: { method: string }) => void
 }
@@ -64,10 +79,9 @@ interface PathExistsResponse {
 }
 
 export class ApiMachineClient {
-    private socket!: Socket<ServerToDaemonEvents, DaemonToServerEvents>
+    private socket!: Socket<ServerToRunnerEvents, RunnerToServerEvents>
     private keepAliveInterval: NodeJS.Timeout | null = null
     private rpcHandlerManager: RpcHandlerManager
-    private onServerShutdown: (() => void) | null = null
 
     constructor(
         private readonly token: string,
@@ -75,7 +89,7 @@ export class ApiMachineClient {
     ) {
         this.rpcHandlerManager = new RpcHandlerManager({
             scopePrefix: this.machine.id,
-            logger: (msg, data) => logger.debug(msg, data)
+            logger: (msg, data) => logger.debug(msg, data),
         })
 
         registerCommonHandlers(this.rpcHandlerManager, process.cwd())
@@ -85,35 +99,35 @@ export class ApiMachineClient {
             const uniquePaths = Array.from(new Set(rawPaths.filter((path): path is string => typeof path === 'string')))
             const exists: Record<string, boolean> = {}
 
-            await Promise.all(uniquePaths.map(async (path) => {
-                const trimmed = path.trim()
-                if (!trimmed) return
-                try {
-                    const stats = await stat(trimmed)
-                    exists[trimmed] = stats.isDirectory()
-                } catch {
-                    exists[trimmed] = false
-                }
-            }))
+            await Promise.all(
+                uniquePaths.map(async (path) => {
+                    const trimmed = path.trim()
+                    if (!trimmed) return
+                    try {
+                        const stats = await stat(trimmed)
+                        exists[trimmed] = stats.isDirectory()
+                    } catch {
+                        exists[trimmed] = false
+                    }
+                })
+            )
 
             return { exists }
         })
     }
 
     setRPCHandlers({ spawnSession, stopSession, requestShutdown }: MachineRpcHandlers): void {
-        this.onServerShutdown = requestShutdown
         this.rpcHandlerManager.registerHandler('spawn-happy-session', async (params: any) => {
             const {
                 directory,
                 sessionId,
-                syncSessionId,
                 machineId,
                 approvedNewDirectoryCreation,
                 agent,
                 yolo,
                 token,
                 sessionType,
-                worktreeName
+                worktreeName,
             } = params || {}
 
             if (!directory) {
@@ -123,14 +137,13 @@ export class ApiMachineClient {
             const result = await spawnSession({
                 directory,
                 sessionId,
-                syncSessionId,
                 machineId,
                 approvedNewDirectoryCreation,
                 agent,
                 yolo,
                 token,
                 sessionType,
-                worktreeName
+                worktreeName,
             })
 
             switch (result.type) {
@@ -157,9 +170,9 @@ export class ApiMachineClient {
             return { message: 'Session stopped' }
         })
 
-        this.rpcHandlerManager.registerHandler('stop-daemon', () => {
+        this.rpcHandlerManager.registerHandler('stop-runner', () => {
             setTimeout(() => requestShutdown(), 100)
-            return { message: 'Daemon stop request acknowledged' }
+            return { message: 'Runner stop request acknowledged' }
         })
     }
 
@@ -167,11 +180,11 @@ export class ApiMachineClient {
         await backoff(async () => {
             const updated = handler(this.machine.metadata)
 
-            const answer = await this.socket.emitWithAck('machine-update-metadata', {
+            const answer = (await this.socket.emitWithAck('machine-update-metadata', {
                 machineId: this.machine.id,
                 metadata: updated,
-                expectedVersion: this.machine.metadataVersion
-            }) as unknown
+                expectedVersion: this.machine.metadataVersion,
+            })) as unknown
 
             applyVersionedAck(answer, {
                 valueKey: 'metadata',
@@ -191,69 +204,69 @@ export class ApiMachineClient {
                 },
                 invalidResponseMessage: 'Invalid machine-update-metadata response',
                 errorMessage: 'Machine metadata update failed',
-                versionMismatchMessage: 'Metadata version mismatch'
+                versionMismatchMessage: 'Metadata version mismatch',
             })
         })
     }
 
-    async updateDaemonState(handler: (state: DaemonState | null) => DaemonState): Promise<void> {
+    async updateRunnerState(handler: (state: RunnerState | null) => RunnerState): Promise<void> {
         await backoff(async () => {
-            const updated = handler(this.machine.daemonState)
+            const updated = handler(this.machine.runnerState)
 
-            const answer = await this.socket.emitWithAck('machine-update-state', {
+            const answer = (await this.socket.emitWithAck('machine-update-state', {
                 machineId: this.machine.id,
-                daemonState: updated,
-                expectedVersion: this.machine.daemonStateVersion
-            }) as unknown
+                runnerState: updated,
+                expectedVersion: this.machine.runnerStateVersion,
+            })) as unknown
 
             applyVersionedAck(answer, {
-                valueKey: 'daemonState',
+                valueKey: 'runnerState',
                 parseValue: (value) => {
-                    const parsed = DaemonStateSchema.safeParse(value)
+                    const parsed = RunnerStateSchema.safeParse(value)
                     return parsed.success ? parsed.data : null
                 },
                 applyValue: (value) => {
-                    this.machine.daemonState = value
+                    this.machine.runnerState = value
                 },
                 applyVersion: (version) => {
-                    this.machine.daemonStateVersion = version
+                    this.machine.runnerStateVersion = version
                 },
                 logInvalidValue: (context, version) => {
                     const suffix = context === 'success' ? 'ack' : 'version-mismatch ack'
-                    logger.debug(`[API MACHINE] Ignoring invalid daemonState value from ${suffix}`, { version })
+                    logger.debug(`[API MACHINE] Ignoring invalid runnerState value from ${suffix}`, { version })
                 },
                 invalidResponseMessage: 'Invalid machine-update-state response',
                 errorMessage: 'Machine state update failed',
-                versionMismatchMessage: 'Daemon state version mismatch'
+                versionMismatchMessage: 'Runner state version mismatch',
             })
         })
     }
 
     connect(): void {
-        this.socket = io(`${configuration.serverUrl}/cli`, {
+        this.socket = io(`${configuration.apiUrl}/cli`, {
             transports: ['websocket'],
             auth: {
                 token: this.token,
                 clientType: 'machine-scoped' as const,
-                machineId: this.machine.id
+                machineId: this.machine.id,
             },
             path: '/socket.io/',
             reconnection: true,
             reconnectionDelay: 1000,
-            reconnectionDelayMax: 5000
+            reconnectionDelayMax: 5000,
         })
 
         this.socket.on('connect', () => {
             logger.debug('[API MACHINE] Connected to bot')
             this.rpcHandlerManager.onSocketConnect(this.socket)
-            this.updateDaemonState((state) => ({
+            this.updateRunnerState((state) => ({
                 ...(state ?? {}),
                 status: 'running',
                 pid: process.pid,
-                httpPort: this.machine.daemonState?.httpPort,
-                startedAt: Date.now()
+                httpPort: this.machine.runnerState?.httpPort,
+                startedAt: Date.now(),
             })).catch((error) => {
-                logger.debug('[API MACHINE] Failed to update daemon state on connect', error)
+                logger.debug('[API MACHINE] Failed to update runner state on connect', error)
             })
             this.startKeepAlive()
         })
@@ -264,9 +277,12 @@ export class ApiMachineClient {
             this.stopKeepAlive()
         })
 
-        this.socket.on('rpc-request', async (data: { method: string; params: string }, callback: (response: string) => void) => {
-            callback(await this.rpcHandlerManager.handleRequest(data))
-        })
+        this.socket.on(
+            'rpc-request',
+            async (data: { method: string; params: string }, callback: (response: string) => void) => {
+                callback(await this.rpcHandlerManager.handleRequest(data))
+            }
+        )
 
         this.socket.on('update', (data: Update) => {
             if (data.body.t !== 'update-machine') {
@@ -288,19 +304,21 @@ export class ApiMachineClient {
                 this.machine.metadataVersion = update.metadata.version
             }
 
-            if (update.daemonState) {
-                const next = update.daemonState.value
+            if (update.runnerState) {
+                const next = update.runnerState.value
                 if (next == null) {
-                    this.machine.daemonState = null
+                    this.machine.runnerState = null
                 } else {
-                    const parsed = DaemonStateSchema.safeParse(next)
+                    const parsed = RunnerStateSchema.safeParse(next)
                     if (parsed.success) {
-                        this.machine.daemonState = parsed.data
+                        this.machine.runnerState = parsed.data
                     } else {
-                        logger.debug('[API MACHINE] Ignoring invalid daemonState update', { version: update.daemonState.version })
+                        logger.debug('[API MACHINE] Ignoring invalid runnerState update', {
+                            version: update.runnerState.version,
+                        })
                     }
                 }
-                this.machine.daemonStateVersion = update.daemonState.version
+                this.machine.runnerStateVersion = update.runnerState.version
             }
         })
 
@@ -311,23 +329,6 @@ export class ApiMachineClient {
         this.socket.on('error', (payload) => {
             logger.debug('[API MACHINE] Socket error:', payload)
         })
-
-        this.socket.on('server-shutdown', (payload: ServerShutdownPayload) => {
-            logger.debug('[API MACHINE] Received server shutdown signal', payload)
-            const graceMs = typeof payload?.graceMs === 'number' ? payload.graceMs : 0
-            const triggerShutdown = () => {
-                if (this.onServerShutdown) {
-                    this.onServerShutdown()
-                } else {
-                    this.shutdown()
-                }
-            }
-            if (graceMs > 0) {
-                setTimeout(triggerShutdown, graceMs)
-            } else {
-                triggerShutdown()
-            }
-        })
     }
 
     private startKeepAlive(): void {
@@ -335,7 +336,7 @@ export class ApiMachineClient {
         this.keepAliveInterval = setInterval(() => {
             this.socket.emit('machine-alive', {
                 machineId: this.machine.id,
-                time: Date.now()
+                time: Date.now(),
             })
         }, 20_000)
     }

@@ -3,12 +3,14 @@ import type { Store } from '../store'
 import { clampAliveTime } from './aliveTime'
 import { EventPublisher } from './eventPublisher'
 
-const machineMetadataSchema = z.object({
-    host: z.string().optional(),
-    platform: z.string().optional(),
-    happyCliVersion: z.string().optional(),
-    displayName: z.string().optional()
-}).passthrough()
+const machineMetadataSchema = z
+    .object({
+        host: z.string().optional(),
+        platform: z.string().optional(),
+        happyCliVersion: z.string().optional(),
+        displayName: z.string().optional(),
+    })
+    .passthrough()
 
 export interface Machine {
     id: string
@@ -26,8 +28,8 @@ export interface Machine {
         [key: string]: unknown
     } | null
     metadataVersion: number
-    daemonState: unknown | null
-    daemonStateVersion: number
+    runnerState: unknown | null
+    runnerStateVersion: number
 }
 
 export class MachineCache {
@@ -37,8 +39,7 @@ export class MachineCache {
     constructor(
         private readonly store: Store,
         private readonly publisher: EventPublisher
-    ) {
-    }
+    ) {}
 
     getMachines(): Machine[] {
         return Array.from(this.machines.values())
@@ -68,9 +69,14 @@ export class MachineCache {
         return this.getMachinesByNamespace(namespace).filter((machine) => machine.active)
     }
 
-    getOrCreateMachine(id: string, metadata: unknown, daemonState: unknown, namespace: string): Machine {
-        const stored = this.store.machines.getOrCreateMachine(id, metadata, daemonState, namespace)
-        return this.refreshMachine(stored.id) ?? (() => { throw new Error('Failed to load machine') })()
+    getOrCreateMachine(id: string, metadata: unknown, runnerState: unknown, namespace: string): Machine {
+        const stored = this.store.machines.getOrCreateMachine(id, metadata, runnerState, namespace)
+        return (
+            this.refreshMachine(stored.id) ??
+            (() => {
+                throw new Error('Failed to load machine')
+            })()
+        )
     }
 
     refreshMachine(machineId: string): Machine | null {
@@ -107,11 +113,11 @@ export class MachineCache {
             createdAt: stored.createdAt,
             updatedAt: stored.updatedAt,
             active: useStoredActivity ? stored.active : (existing?.active ?? stored.active),
-            activeAt: useStoredActivity ? storedActiveAt : (existingActiveAt || storedActiveAt),
+            activeAt: useStoredActivity ? storedActiveAt : existingActiveAt || storedActiveAt,
             metadata,
             metadataVersion: stored.metadataVersion,
-            daemonState: stored.daemonState,
-            daemonStateVersion: stored.daemonStateVersion
+            runnerState: stored.runnerState,
+            runnerStateVersion: stored.runnerStateVersion,
         }
 
         this.machines.set(machineId, machine)
@@ -139,10 +145,14 @@ export class MachineCache {
 
         const now = Date.now()
         const lastBroadcastAt = this.lastBroadcastAtByMachineId.get(machine.id) ?? 0
-        const shouldBroadcast = (!wasActive && machine.active) || (now - lastBroadcastAt > 10_000)
+        const shouldBroadcast = (!wasActive && machine.active) || now - lastBroadcastAt > 10_000
         if (shouldBroadcast) {
             this.lastBroadcastAtByMachineId.set(machine.id, now)
-            this.publisher.emit({ type: 'machine-updated', machineId: machine.id, data: { activeAt: machine.activeAt } })
+            this.publisher.emit({
+                type: 'machine-updated',
+                machineId: machine.id,
+                data: { activeAt: machine.activeAt },
+            })
         }
     }
 

@@ -1,36 +1,36 @@
-import { ApiClient, ApiSessionClient } from '@/lib';
-import { MessageQueue2 } from '@/utils/MessageQueue2';
-import { AgentSessionBase } from '@/agent/sessionBase';
-import type { EnhancedMode, PermissionMode } from './loop';
-import type { CodexCliOverrides } from './utils/codexCliOverrides';
-import type { LocalLaunchExitReason } from '@/agent/localLaunchPolicy';
+import { ApiClient, ApiSessionClient } from '@/lib'
+import { MessageQueue2 } from '@/utils/MessageQueue2'
+import { AgentSessionBase } from '@/agent/sessionBase'
+import type { EnhancedMode, PermissionMode } from './loop'
+import type { CodexCliOverrides } from './utils/codexCliOverrides'
+import type { LocalLaunchExitReason } from '@/agent/localLaunchPolicy'
 
 type LocalLaunchFailure = {
-    message: string;
-    exitReason: LocalLaunchExitReason;
-};
+    message: string
+    exitReason: LocalLaunchExitReason
+}
 
 export class CodexSession extends AgentSessionBase<EnhancedMode> {
-    readonly codexArgs?: string[];
-    readonly codexCliOverrides?: CodexCliOverrides;
-    readonly startedBy: 'daemon' | 'terminal';
-    readonly startingMode: 'local' | 'remote';
-    localLaunchFailure: LocalLaunchFailure | null = null;
+    readonly codexArgs?: string[]
+    readonly codexCliOverrides?: CodexCliOverrides
+    readonly startedBy: 'runner' | 'terminal'
+    readonly startingMode: 'local' | 'remote'
+    localLaunchFailure: LocalLaunchFailure | null = null
 
     constructor(opts: {
-        api: ApiClient;
-        client: ApiSessionClient;
-        path: string;
-        logPath: string;
-        sessionId: string | null;
-        messageQueue: MessageQueue2<EnhancedMode>;
-        onModeChange: (mode: 'local' | 'remote') => void;
-        mode?: 'local' | 'remote';
-        startedBy: 'daemon' | 'terminal';
-        startingMode: 'local' | 'remote';
-        codexArgs?: string[];
-        codexCliOverrides?: CodexCliOverrides;
-        permissionMode?: PermissionMode;
+        api: ApiClient
+        client: ApiSessionClient
+        path: string
+        logPath: string
+        sessionId: string | null
+        messageQueue: MessageQueue2<EnhancedMode>
+        onModeChange: (mode: 'local' | 'remote') => void
+        mode?: 'local' | 'remote'
+        startedBy: 'runner' | 'terminal'
+        startingMode: 'local' | 'remote'
+        codexArgs?: string[]
+        codexCliOverrides?: CodexCliOverrides
+        permissionMode?: PermissionMode
     }) {
         super({
             api: opts.api,
@@ -45,35 +45,35 @@ export class CodexSession extends AgentSessionBase<EnhancedMode> {
             sessionIdLabel: 'Codex',
             applySessionIdToMetadata: (metadata, sessionId) => ({
                 ...metadata,
-                codexSessionId: sessionId
+                codexSessionId: sessionId,
             }),
-            permissionMode: opts.permissionMode
-        });
+            permissionMode: opts.permissionMode,
+        })
 
-        this.codexArgs = opts.codexArgs;
-        this.codexCliOverrides = opts.codexCliOverrides;
-        this.startedBy = opts.startedBy;
-        this.startingMode = opts.startingMode;
-        this.permissionMode = opts.permissionMode;
+        this.codexArgs = opts.codexArgs
+        this.codexCliOverrides = opts.codexCliOverrides
+        this.startedBy = opts.startedBy
+        this.startingMode = opts.startingMode
+        this.permissionMode = opts.permissionMode
     }
 
     setPermissionMode = (mode: PermissionMode): void => {
-        this.permissionMode = mode;
-    };
+        this.permissionMode = mode
+    }
 
     recordLocalLaunchFailure = (message: string, exitReason: LocalLaunchExitReason): void => {
-        this.localLaunchFailure = { message, exitReason };
-    };
+        this.localLaunchFailure = { message, exitReason }
+    }
 
     sendCodexMessage = (message: unknown): void => {
-        this.client.sendCodexMessage(message);
-    };
+        this.client.sendCodexMessage(message)
+    }
 
     sendUserMessage = (text: string): void => {
-        this.client.sendUserMessage(text);
-    };
+        this.client.sendUserMessage(text)
+    }
 
     sendSessionEvent = (event: Parameters<ApiSessionClient['sendSessionEvent']>[0]): void => {
-        this.client.sendSessionEvent(event);
-    };
+        this.client.sendSessionEvent(event)
+    }
 }

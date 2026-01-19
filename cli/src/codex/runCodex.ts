@@ -10,16 +10,15 @@ import { bootstrapSession } from '@/agent/sessionFactory'
 import { createModeChangeHandler, createRunnerLifecycle, setControlledByUser } from '@/agent/runnerLifecycle'
 import { isPermissionModeAllowedForFlavor } from '@hapi/protocol'
 import { PermissionModeSchema } from '@hapi/protocol/schemas'
+import { formatMessageWithAttachments } from '@/utils/attachmentFormatter'
 
 export { emitReadyIfIdle } from './utils/emitReadyIfIdle'
 
 export async function runCodex(opts: {
-    startedBy?: 'daemon' | 'terminal'
+    startedBy?: 'runner' | 'terminal'
     codexArgs?: string[]
     permissionMode?: PermissionMode
     resumeSessionId?: string
-    forceNewSession?: boolean
-    sessionTag?: string
 }): Promise<void> {
     const workingDirectory = process.cwd()
     const startedBy = opts.startedBy ?? 'terminal'
@@ -34,11 +33,9 @@ export async function runCodex(opts: {
         startedBy,
         workingDirectory,
         agentState: state,
-        forceNewSession: opts.forceNewSession,
-        tag: opts.sessionTag,
     })
 
-    const startingMode: 'local' | 'remote' = startedBy === 'daemon' ? 'remote' : 'local'
+    const startingMode: 'local' | 'remote' = startedBy === 'runner' ? 'remote' : 'local'
 
     setControlledByUser(session, startingMode)
 
@@ -79,7 +76,8 @@ export async function runCodex(opts: {
         const enhancedMode: EnhancedMode = {
             permissionMode: messagePermissionMode ?? 'default',
         }
-        messageQueue.push(message.content.text, enhancedMode)
+        const formattedText = formatMessageWithAttachments(message.content.text, message.content.attachments)
+        messageQueue.push(formattedText, enhancedMode)
     })
 
     const formatFailureReason = (message: string): string => {

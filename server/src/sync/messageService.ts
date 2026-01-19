@@ -3,15 +3,26 @@ import type { Server } from 'socket.io'
 import type { Store } from '../store'
 import { EventPublisher } from './eventPublisher'
 
+type AttachmentMetadata = {
+    id: string
+    filename: string
+    mimeType: string
+    size: number
+    path: string
+    previewUrl?: string
+}
+
 export class MessageService {
     constructor(
         private readonly store: Store,
         private readonly io: Server,
         private readonly publisher: EventPublisher
-    ) {
-    }
+    ) {}
 
-    getMessagesPage(sessionId: string, options: { limit: number; beforeSeq: number | null }): {
+    getMessagesPage(
+        sessionId: string,
+        options: { limit: number; beforeSeq: number | null }
+    ): {
         messages: DecryptedMessage[]
         page: {
             limit: number
@@ -26,7 +37,7 @@ export class MessageService {
             seq: message.seq,
             localId: message.localId,
             content: message.content,
-            createdAt: message.createdAt
+            createdAt: message.createdAt,
         }))
 
         let oldestSeq: number | null = null
@@ -38,8 +49,8 @@ export class MessageService {
         }
 
         const nextBeforeSeq = oldestSeq
-        const hasMore = nextBeforeSeq !== null
-            && this.store.messages.getMessages(sessionId, 1, nextBeforeSeq).length > 0
+        const hasMore =
+            nextBeforeSeq !== null && this.store.messages.getMessages(sessionId, 1, nextBeforeSeq).length > 0
 
         return {
             messages,
@@ -47,8 +58,8 @@ export class MessageService {
                 limit: options.limit,
                 beforeSeq: options.beforeSeq,
                 nextBeforeSeq,
-                hasMore
-            }
+                hasMore,
+            },
         }
     }
 
@@ -59,13 +70,18 @@ export class MessageService {
             seq: message.seq,
             localId: message.localId,
             content: message.content,
-            createdAt: message.createdAt
+            createdAt: message.createdAt,
         }))
     }
 
     async sendMessage(
         sessionId: string,
-        payload: { text: string; localId?: string | null; sentFrom?: 'telegram-bot' | 'webapp' }
+        payload: {
+            text: string
+            localId?: string | null
+            attachments?: AttachmentMetadata[]
+            sentFrom?: 'telegram-bot' | 'webapp'
+        }
     ): Promise<void> {
         const sentFrom = payload.sentFrom ?? 'webapp'
 
@@ -73,11 +89,12 @@ export class MessageService {
             role: 'user',
             content: {
                 type: 'text',
-                text: payload.text
+                text: payload.text,
+                attachments: payload.attachments,
             },
             meta: {
-                sentFrom
-            }
+                sentFrom,
+            },
         }
 
         const msg = this.store.messages.addMessage(sessionId, content, payload.localId ?? undefined)
@@ -94,9 +111,9 @@ export class MessageService {
                     seq: msg.seq,
                     createdAt: msg.createdAt,
                     localId: msg.localId,
-                    content: msg.content
-                }
-            }
+                    content: msg.content,
+                },
+            },
         }
         this.io.of('/cli').to(`session:${sessionId}`).emit('update', update)
 
@@ -108,8 +125,8 @@ export class MessageService {
                 seq: msg.seq,
                 localId: msg.localId,
                 content: msg.content,
-                createdAt: msg.createdAt
-            }
+                createdAt: msg.createdAt,
+            },
         })
     }
 }

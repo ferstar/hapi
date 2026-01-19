@@ -1,4 +1,4 @@
-import { killRunawayHappyProcesses } from '@/daemon/doctor'
+import { killRunawayHappyProcesses } from '@/runner/doctor'
 import { runDoctorCommand } from '@/ui/doctor'
 import type { CommandDefinition } from './types'
 
@@ -15,5 +15,5 @@ export const doctorCommand: CommandDefinition = {
             process.exit(0)
         }
         await runDoctorCommand()
-    }
+    },
 }

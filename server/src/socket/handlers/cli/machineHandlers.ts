@@ -11,9 +11,7 @@ type MachineAlivePayload = {
 
 type AccessErrorReason = 'namespace-missing' | 'access-denied' | 'not-found'
 
-type AccessResult<T> =
-    | { ok: true; value: T }
-    | { ok: false; reason: AccessErrorReason }
+type AccessResult<T> = { ok: true; value: T } | { ok: false; reason: AccessErrorReason }
 
 type ResolveMachineAccess = (machineId: string) => AccessResult<StoredMachine>
 
@@ -22,13 +20,13 @@ type EmitAccessError = (scope: 'session' | 'machine', id: string, reason: Access
 const machineUpdateMetadataSchema = z.object({
     machineId: z.string(),
     expectedVersion: z.number().int(),
-    metadata: z.unknown()
+    metadata: z.unknown(),
 })
 
 const machineUpdateStateSchema = z.object({
     machineId: z.string(),
     expectedVersion: z.number().int(),
-    daemonState: z.unknown().nullable()
+    runnerState: z.unknown().nullable(),
 })
 
 export type MachineHandlersDeps = {
@@ -68,7 +66,12 @@ export function registerMachineHandlers(socket: SocketWithData, deps: MachineHan
             return
         }
 
-        const result = store.machines.updateMachineMetadata(id, metadata, expectedVersion, machineAccess.value.namespace)
+        const result = store.machines.updateMachineMetadata(
+            id,
+            metadata,
+            expectedVersion,
+            machineAccess.value.namespace
+        )
         if (result.result === 'success') {
             cb({ result: 'success', version: result.version, metadata: result.value })
         } else if (result.result === 'version-mismatch') {
@@ -86,8 +89,8 @@ export function registerMachineHandlers(socket: SocketWithData, deps: MachineHan
                     t: 'update-machine' as const,
                     machineId: id,
                     metadata: { version: result.version, value: metadata },
-                    daemonState: null
-                }
+                    runnerState: null,
+                },
             }
             socket.to(`machine:${id}`).emit('update', update)
             onWebappEvent?.({ type: 'machine-updated', machineId: id, data: { id } })
@@ -101,23 +104,23 @@ export function registerMachineHandlers(socket: SocketWithData, deps: MachineHan
             return
         }
 
-        const { machineId: id, daemonState, expectedVersion } = parsed.data
+        const { machineId: id, runnerState, expectedVersion } = parsed.data
         const machineAccess = resolveMachineAccess(id)
         if (!machineAccess.ok) {
             cb({ result: 'error', reason: machineAccess.reason })
             return
         }
 
-        const result = store.machines.updateMachineDaemonState(
+        const result = store.machines.updateMachineRunnerState(
             id,
-            daemonState,
+            runnerState,
             expectedVersion,
             machineAccess.value.namespace
         )
         if (result.result === 'success') {
-            cb({ result: 'success', version: result.version, daemonState: result.value })
+            cb({ result: 'success', version: result.version, runnerState: result.value })
         } else if (result.result === 'version-mismatch') {
-            cb({ result: 'version-mismatch', version: result.version, daemonState: result.value })
+            cb({ result: 'version-mismatch', version: result.version, runnerState: result.value })
         } else {
             cb({ result: 'error' })
         }
@@ -131,8 +134,8 @@ export function registerMachineHandlers(socket: SocketWithData, deps: MachineHan
                     t: 'update-machine' as const,
                     machineId: id,
                     metadata: null,
-                    daemonState: { version: result.version, value: daemonState }
-                }
+                    runnerState: { version: result.version, value: runnerState },
+                },
             }
             socket.to(`machine:${id}`).emit('update', update)
             onWebappEvent?.({ type: 'machine-updated', machineId: id, data: { id } })

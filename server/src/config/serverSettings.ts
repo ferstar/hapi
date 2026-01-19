@@ -13,17 +13,9 @@ import { getSettingsFile, readSettings, writeSettings } from './settings'
 export interface ServerSettings {
     telegramBotToken: string | null
     telegramNotification: boolean
-    telegramNotificationVisibleWindowMs: number
-    telegramNotificationRetryBaseDelayMs: number
-    telegramNotificationRetryMaxAttempts: number
-    pushNotificationVisibleWindowMs: number
-    pushNotificationRetryBaseDelayMs: number
-    pushNotificationRetryMaxAttempts: number
-    sseHeartbeatMs: number
-    webIdleTimeoutMs: number
-    webappHost: string
-    webappPort: number
-    webappUrl: string
+    listenHost: string
+    listenPort: number
+    publicUrl: string
     corsOrigins: string[]
 }
 
@@ -32,17 +24,9 @@ export interface ServerSettingsResult {
     sources: {
         telegramBotToken: 'env' | 'file' | 'default'
         telegramNotification: 'env' | 'file' | 'default'
-        telegramNotificationVisibleWindowMs: 'env' | 'file' | 'default'
-        telegramNotificationRetryBaseDelayMs: 'env' | 'file' | 'default'
-        telegramNotificationRetryMaxAttempts: 'env' | 'file' | 'default'
-        pushNotificationVisibleWindowMs: 'env' | 'file' | 'default'
-        pushNotificationRetryBaseDelayMs: 'env' | 'file' | 'default'
-        pushNotificationRetryMaxAttempts: 'env' | 'file' | 'default'
-        sseHeartbeatMs: 'env' | 'file' | 'default'
-        webIdleTimeoutMs: 'env' | 'file' | 'default'
-        webappHost: 'env' | 'file' | 'default'
-        webappPort: 'env' | 'file' | 'default'
-        webappUrl: 'env' | 'file' | 'default'
+        listenHost: 'env' | 'file' | 'default'
+        listenPort: 'env' | 'file' | 'default'
+        publicUrl: 'env' | 'file' | 'default'
         corsOrigins: 'env' | 'file' | 'default'
     }
     savedToFile: boolean
@@ -74,11 +58,11 @@ function parseCorsOrigins(str: string): string[] {
 }
 
 /**
- * Derive CORS origins from webapp URL
+ * Derive CORS origins from public URL
  */
-function deriveCorsOrigins(webappUrl: string): string[] {
+function deriveCorsOrigins(publicUrl: string): string[] {
     try {
-        return [new URL(webappUrl).origin]
+        return [new URL(publicUrl).origin]
     } catch {
         return []
     }
@@ -101,17 +85,9 @@ export async function loadServerSettings(dataDir: string): Promise<ServerSetting
     const sources: ServerSettingsResult['sources'] = {
         telegramBotToken: 'default',
         telegramNotification: 'default',
-        telegramNotificationVisibleWindowMs: 'default',
-        telegramNotificationRetryBaseDelayMs: 'default',
-        telegramNotificationRetryMaxAttempts: 'default',
-        pushNotificationVisibleWindowMs: 'default',
-        pushNotificationRetryBaseDelayMs: 'default',
-        pushNotificationRetryMaxAttempts: 'default',
-        sseHeartbeatMs: 'default',
-        webIdleTimeoutMs: 'default',
-        webappHost: 'default',
-        webappPort: 'default',
-        webappUrl: 'default',
+        listenHost: 'default',
+        listenPort: 'default',
+        publicUrl: 'default',
         corsOrigins: 'default',
     }
     // telegramBotToken: env > file > null
@@ -142,197 +118,74 @@ export async function loadServerSettings(dataDir: string): Promise<ServerSetting
         sources.telegramNotification = 'file'
     }
 
-    // telegramNotificationVisibleWindowMs: env > file > 60000
-    let telegramNotificationVisibleWindowMs = 60_000
-    if (process.env.TELEGRAM_NOTIFICATION_VISIBLE_WINDOW_MS) {
-        const parsed = parseInt(process.env.TELEGRAM_NOTIFICATION_VISIBLE_WINDOW_MS, 10)
-        if (!Number.isFinite(parsed) || parsed <= 0) {
-            throw new Error('TELEGRAM_NOTIFICATION_VISIBLE_WINDOW_MS must be a positive integer')
-        }
-        telegramNotificationVisibleWindowMs = parsed
-        sources.telegramNotificationVisibleWindowMs = 'env'
-        if (settings.telegramNotificationVisibleWindowMs === undefined) {
-            settings.telegramNotificationVisibleWindowMs = telegramNotificationVisibleWindowMs
+    // listenHost: env > file (new or old name) > default
+    let listenHost = '127.0.0.1'
+    if (process.env.HAPI_LISTEN_HOST) {
+        listenHost = process.env.HAPI_LISTEN_HOST
+        sources.listenHost = 'env'
+        if (settings.listenHost === undefined) {
+            settings.listenHost = listenHost
             needsSave = true
         }
-    } else if (settings.telegramNotificationVisibleWindowMs !== undefined) {
-        telegramNotificationVisibleWindowMs = settings.telegramNotificationVisibleWindowMs
-        sources.telegramNotificationVisibleWindowMs = 'file'
-    }
-
-    // telegramNotificationRetryBaseDelayMs: env > file > 30000
-    let telegramNotificationRetryBaseDelayMs = 30_000
-    if (process.env.TELEGRAM_NOTIFICATION_RETRY_BASE_DELAY_MS) {
-        const parsed = parseInt(process.env.TELEGRAM_NOTIFICATION_RETRY_BASE_DELAY_MS, 10)
-        if (!Number.isFinite(parsed) || parsed <= 0) {
-            throw new Error('TELEGRAM_NOTIFICATION_RETRY_BASE_DELAY_MS must be a positive integer')
-        }
-        telegramNotificationRetryBaseDelayMs = parsed
-        sources.telegramNotificationRetryBaseDelayMs = 'env'
-        if (settings.telegramNotificationRetryBaseDelayMs === undefined) {
-            settings.telegramNotificationRetryBaseDelayMs = telegramNotificationRetryBaseDelayMs
-            needsSave = true
-        }
-    } else if (settings.telegramNotificationRetryBaseDelayMs !== undefined) {
-        telegramNotificationRetryBaseDelayMs = settings.telegramNotificationRetryBaseDelayMs
-        sources.telegramNotificationRetryBaseDelayMs = 'file'
-    }
-
-    // telegramNotificationRetryMaxAttempts: env > file > 3
-    let telegramNotificationRetryMaxAttempts = 3
-    if (process.env.TELEGRAM_NOTIFICATION_RETRY_MAX_ATTEMPTS) {
-        const parsed = parseInt(process.env.TELEGRAM_NOTIFICATION_RETRY_MAX_ATTEMPTS, 10)
-        if (!Number.isFinite(parsed) || parsed <= 0) {
-            throw new Error('TELEGRAM_NOTIFICATION_RETRY_MAX_ATTEMPTS must be a positive integer')
-        }
-        telegramNotificationRetryMaxAttempts = parsed
-        sources.telegramNotificationRetryMaxAttempts = 'env'
-        if (settings.telegramNotificationRetryMaxAttempts === undefined) {
-            settings.telegramNotificationRetryMaxAttempts = telegramNotificationRetryMaxAttempts
-            needsSave = true
-        }
-    } else if (settings.telegramNotificationRetryMaxAttempts !== undefined) {
-        telegramNotificationRetryMaxAttempts = settings.telegramNotificationRetryMaxAttempts
-        sources.telegramNotificationRetryMaxAttempts = 'file'
-    }
-
-    // pushNotificationVisibleWindowMs: env > file > 60000
-    let pushNotificationVisibleWindowMs = 60_000
-    if (process.env.PUSH_NOTIFICATION_VISIBLE_WINDOW_MS) {
-        const parsed = parseInt(process.env.PUSH_NOTIFICATION_VISIBLE_WINDOW_MS, 10)
-        if (!Number.isFinite(parsed) || parsed <= 0) {
-            throw new Error('PUSH_NOTIFICATION_VISIBLE_WINDOW_MS must be a positive integer')
-        }
-        pushNotificationVisibleWindowMs = parsed
-        sources.pushNotificationVisibleWindowMs = 'env'
-        if (settings.pushNotificationVisibleWindowMs === undefined) {
-            settings.pushNotificationVisibleWindowMs = pushNotificationVisibleWindowMs
-            needsSave = true
-        }
-    } else if (settings.pushNotificationVisibleWindowMs !== undefined) {
-        pushNotificationVisibleWindowMs = settings.pushNotificationVisibleWindowMs
-        sources.pushNotificationVisibleWindowMs = 'file'
-    }
-
-    // pushNotificationRetryBaseDelayMs: env > file > 30000
-    let pushNotificationRetryBaseDelayMs = 30_000
-    if (process.env.PUSH_NOTIFICATION_RETRY_BASE_DELAY_MS) {
-        const parsed = parseInt(process.env.PUSH_NOTIFICATION_RETRY_BASE_DELAY_MS, 10)
-        if (!Number.isFinite(parsed) || parsed <= 0) {
-            throw new Error('PUSH_NOTIFICATION_RETRY_BASE_DELAY_MS must be a positive integer')
-        }
-        pushNotificationRetryBaseDelayMs = parsed
-        sources.pushNotificationRetryBaseDelayMs = 'env'
-        if (settings.pushNotificationRetryBaseDelayMs === undefined) {
-            settings.pushNotificationRetryBaseDelayMs = pushNotificationRetryBaseDelayMs
-            needsSave = true
-        }
-    } else if (settings.pushNotificationRetryBaseDelayMs !== undefined) {
-        pushNotificationRetryBaseDelayMs = settings.pushNotificationRetryBaseDelayMs
-        sources.pushNotificationRetryBaseDelayMs = 'file'
-    }
-
-    // pushNotificationRetryMaxAttempts: env > file > 3
-    let pushNotificationRetryMaxAttempts = 3
-    if (process.env.PUSH_NOTIFICATION_RETRY_MAX_ATTEMPTS) {
-        const parsed = parseInt(process.env.PUSH_NOTIFICATION_RETRY_MAX_ATTEMPTS, 10)
-        if (!Number.isFinite(parsed) || parsed <= 0) {
-            throw new Error('PUSH_NOTIFICATION_RETRY_MAX_ATTEMPTS must be a positive integer')
-        }
-        pushNotificationRetryMaxAttempts = parsed
-        sources.pushNotificationRetryMaxAttempts = 'env'
-        if (settings.pushNotificationRetryMaxAttempts === undefined) {
-            settings.pushNotificationRetryMaxAttempts = pushNotificationRetryMaxAttempts
-            needsSave = true
-        }
-    } else if (settings.pushNotificationRetryMaxAttempts !== undefined) {
-        pushNotificationRetryMaxAttempts = settings.pushNotificationRetryMaxAttempts
-        sources.pushNotificationRetryMaxAttempts = 'file'
-    }
-
-    // sseHeartbeatMs: env > file > 30000
-    let sseHeartbeatMs = 30_000
-    if (process.env.SSE_HEARTBEAT_MS) {
-        const parsed = parseInt(process.env.SSE_HEARTBEAT_MS, 10)
-        if (!Number.isFinite(parsed) || parsed <= 0) {
-            throw new Error('SSE_HEARTBEAT_MS must be a positive integer')
-        }
-        sseHeartbeatMs = parsed
-        sources.sseHeartbeatMs = 'env'
-        if (settings.sseHeartbeatMs === undefined) {
-            settings.sseHeartbeatMs = sseHeartbeatMs
-            needsSave = true
-        }
-    } else if (settings.sseHeartbeatMs !== undefined) {
-        sseHeartbeatMs = settings.sseHeartbeatMs
-        sources.sseHeartbeatMs = 'file'
-    }
-
-    // webIdleTimeoutMs: env > file > 120000
-    let webIdleTimeoutMs = 120_000
-    if (process.env.WEB_IDLE_TIMEOUT_MS) {
-        const parsed = parseInt(process.env.WEB_IDLE_TIMEOUT_MS, 10)
-        if (!Number.isFinite(parsed) || parsed <= 0) {
-            throw new Error('WEB_IDLE_TIMEOUT_MS must be a positive integer')
-        }
-        webIdleTimeoutMs = parsed
-        sources.webIdleTimeoutMs = 'env'
-        if (settings.webIdleTimeoutMs === undefined) {
-            settings.webIdleTimeoutMs = webIdleTimeoutMs
-            needsSave = true
-        }
-    } else if (settings.webIdleTimeoutMs !== undefined) {
-        webIdleTimeoutMs = settings.webIdleTimeoutMs
-        sources.webIdleTimeoutMs = 'file'
-    }
-
-    // webappHost: env > file > 127.0.0.1
-    let webappHost = '127.0.0.1'
-    if (process.env.WEBAPP_HOST) {
-        webappHost = process.env.WEBAPP_HOST
-        sources.webappHost = 'env'
-        if (settings.webappHost === undefined) {
-            settings.webappHost = webappHost
-            needsSave = true
-        }
+    } else if (settings.listenHost !== undefined) {
+        listenHost = settings.listenHost
+        sources.listenHost = 'file'
     } else if (settings.webappHost !== undefined) {
-        webappHost = settings.webappHost
-        sources.webappHost = 'file'
+        // Migrate from old field name
+        listenHost = settings.webappHost
+        sources.listenHost = 'file'
+        settings.listenHost = listenHost
+        delete settings.webappHost
+        needsSave = true
     }
 
-    // webappPort: env > file > 3006
-    let webappPort = 3006
-    if (process.env.WEBAPP_PORT) {
-        const parsed = parseInt(process.env.WEBAPP_PORT, 10)
+    // listenPort: env > file (new or old name) > default
+    let listenPort = 3006
+    if (process.env.HAPI_LISTEN_PORT) {
+        const parsed = parseInt(process.env.HAPI_LISTEN_PORT, 10)
         if (!Number.isFinite(parsed) || parsed <= 0) {
-            throw new Error('WEBAPP_PORT must be a valid port number')
+            throw new Error('HAPI_LISTEN_PORT must be a valid port number')
         }
-        webappPort = parsed
-        sources.webappPort = 'env'
-        if (settings.webappPort === undefined) {
-            settings.webappPort = webappPort
+        listenPort = parsed
+        sources.listenPort = 'env'
+        if (settings.listenPort === undefined) {
+            settings.listenPort = listenPort
             needsSave = true
         }
+    } else if (settings.listenPort !== undefined) {
+        listenPort = settings.listenPort
+        sources.listenPort = 'file'
     } else if (settings.webappPort !== undefined) {
-        webappPort = settings.webappPort
-        sources.webappPort = 'file'
+        // Migrate from old field name
+        listenPort = settings.webappPort
+        sources.listenPort = 'file'
+        settings.listenPort = listenPort
+        delete settings.webappPort
+        needsSave = true
     }
 
-    // webappUrl: env > file > http://localhost:{port}
-    let webappUrl = `http://localhost:${webappPort}`
-    if (process.env.WEBAPP_URL) {
-        webappUrl = process.env.WEBAPP_URL
-        sources.webappUrl = 'env'
-        if (settings.webappUrl === undefined) {
-            settings.webappUrl = webappUrl
+    // publicUrl: env > file (new or old name) > default
+    let publicUrl = `http://localhost:${listenPort}`
+    if (process.env.HAPI_PUBLIC_URL) {
+        publicUrl = process.env.HAPI_PUBLIC_URL
+        sources.publicUrl = 'env'
+        if (settings.publicUrl === undefined) {
+            settings.publicUrl = publicUrl
             needsSave = true
         }
+    } else if (settings.publicUrl !== undefined) {
+        publicUrl = settings.publicUrl
+        sources.publicUrl = 'file'
     } else if (settings.webappUrl !== undefined) {
-        webappUrl = settings.webappUrl
-        sources.webappUrl = 'file'
+        // Migrate from old field name
+        publicUrl = settings.webappUrl
+        sources.publicUrl = 'file'
+        settings.publicUrl = publicUrl
+        delete settings.webappUrl
+        needsSave = true
     }
 
-    // corsOrigins: env > file > derived from webappUrl
+    // corsOrigins: env > file > derived from publicUrl
     let corsOrigins: string[]
     if (process.env.CORS_ORIGINS) {
         corsOrigins = parseCorsOrigins(process.env.CORS_ORIGINS)
@@ -345,7 +198,7 @@ export async function loadServerSettings(dataDir: string): Promise<ServerSetting
         corsOrigins = settings.corsOrigins
         sources.corsOrigins = 'file'
     } else {
-        corsOrigins = deriveCorsOrigins(webappUrl)
+        corsOrigins = deriveCorsOrigins(publicUrl)
     }
 
     // Save settings if any new values were added
@@ -357,17 +210,9 @@ export async function loadServerSettings(dataDir: string): Promise<ServerSetting
         settings: {
             telegramBotToken,
             telegramNotification,
-            telegramNotificationVisibleWindowMs,
-            telegramNotificationRetryBaseDelayMs,
-            telegramNotificationRetryMaxAttempts,
-            pushNotificationVisibleWindowMs,
-            pushNotificationRetryBaseDelayMs,
-            pushNotificationRetryMaxAttempts,
-            sseHeartbeatMs,
-            webIdleTimeoutMs,
-            webappHost,
-            webappPort,
-            webappUrl,
+            listenHost,
+            listenPort,
+            publicUrl,
             corsOrigins,
         },
         sources,

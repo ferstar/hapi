@@ -2,6 +2,7 @@ import { getPermissionModeOptionsForFlavor, MODEL_MODE_LABELS, MODEL_MODES } fro
 import { ComposerPrimitive, useAssistantApi, useAssistantState } from '@assistant-ui/react'
 import {
     type ChangeEvent as ReactChangeEvent,
+    type FormEvent as ReactFormEvent,
     type KeyboardEvent as ReactKeyboardEvent,
     type SyntheticEvent as ReactSyntheticEvent,
     useCallback,
@@ -21,6 +22,7 @@ import { FloatingOverlay } from '@/components/ChatInput/FloatingOverlay'
 import { Autocomplete } from '@/components/ChatInput/Autocomplete'
 import { StatusBar } from '@/components/AssistantChat/StatusBar'
 import { ComposerButtons } from '@/components/AssistantChat/ComposerButtons'
+import { AttachmentItem } from '@/components/AssistantChat/AttachmentItem'
 import { useTranslation } from '@/lib/use-translation'
 
 export interface TextInputState {
@@ -44,12 +46,6 @@ export function HappyComposer(props: {
     onModelModeChange?: (mode: ModelMode) => void
     onSwitchToRemote?: () => void
     onTerminal?: () => void
-    onRename?: () => void
-    onArchive?: () => void
-    onDelete?: () => void
-    onCloseAndNew?: () => void
-    onViewFiles?: () => void
-    sessionActionsDisabled?: boolean
     autocompletePrefixes?: string[]
     autocompleteSuggestions?: (query: string) => Promise<Suggestion[]>
 }) {
@@ -68,12 +64,6 @@ export function HappyComposer(props: {
         onModelModeChange,
         onSwitchToRemote,
         onTerminal,
-        onRename,
-        onArchive,
-        onDelete,
-        onCloseAndNew,
-        onViewFiles,
-        sessionActionsDisabled = false,
         autocompletePrefixes = ['@', '/'],
         autocompleteSuggestions = defaultSuggestionHandler,
     } = props
@@ -84,13 +74,27 @@ export function HappyComposer(props: {
 
     const api = useAssistantApi()
     const composerText = useAssistantState(({ composer }) => composer.text)
+    const attachments = useAssistantState(({ composer }) => composer.attachments)
     const threadIsRunning = useAssistantState(({ thread }) => thread.isRunning)
     const threadIsDisabled = useAssistantState(({ thread }) => thread.isDisabled)
 
     const controlsDisabled = disabled || !active || threadIsDisabled
     const trimmed = composerText.trim()
     const hasText = trimmed.length > 0
-    const canSend = hasText && !controlsDisabled && !threadIsRunning
+    const hasAttachments = attachments.length > 0
+    const attachmentsReady =
+        !hasAttachments ||
+        attachments.every((attachment) => {
+            if (attachment.status.type === 'complete') {
+                return true
+            }
+            if (attachment.status.type !== 'requires-action') {
+                return false
+            }
+            const path = (attachment as { path?: string }).path
+            return typeof path === 'string' && path.length > 0
+        })
+    const canSend = (hasText || hasAttachments) && attachmentsReady && !controlsDisabled && !threadIsRunning
 
     const [inputState, setInputState] = useState<TextInputState>({
         text: '',
@@ -99,18 +103,10 @@ export function HappyComposer(props: {
     const [showSettings, setShowSettings] = useState(false)
     const [isAborting, setIsAborting] = useState(false)
     const [isSwitching, setIsSwitching] = useState(false)
-    const [abortConfirmActive, setAbortConfirmActive] = useState(false)
-    const [terminalConfirmActive, setTerminalConfirmActive] = useState(false)
-    const [filesConfirmActive, setFilesConfirmActive] = useState(false)
     const [showContinueHint, setShowContinueHint] = useState(false)
 
     const textareaRef = useRef<HTMLTextAreaElement>(null)
     const prevControlledByUser = useRef(controlledByUser)
-    const abortConfirmTimer = useRef<number | null>(null)
-    const terminalConfirmTimer = useRef<number | null>(null)
-    const filesConfirmTimer = useRef<number | null>(null)
-    const settingsOverlayRef = useRef<HTMLDivElement>(null)
-    const settingsButtonRef = useRef<HTMLButtonElement>(null)
 
     useEffect(() => {
         setInputState((prev) => {
@@ -212,29 +208,6 @@ export function HappyComposer(props: {
     }, [isAborting, threadIsRunning])
 
     useEffect(() => {
-        if (threadIsRunning) return
-        if (abortConfirmTimer.current !== null) {
-            window.clearTimeout(abortConfirmTimer.current)
-            abortConfirmTimer.current = null
-        }
-        setAbortConfirmActive(false)
-    }, [threadIsRunning])
-
-    useEffect(() => {
-        if (!controlsDisabled) return
-        if (terminalConfirmTimer.current !== null) {
-            window.clearTimeout(terminalConfirmTimer.current)
-            terminalConfirmTimer.current = null
-        }
-        if (filesConfirmTimer.current !== null) {
-            window.clearTimeout(filesConfirmTimer.current)
-            filesConfirmTimer.current = null
-        }
-        setTerminalConfirmActive(false)
-        setFilesConfirmActive(false)
-    }, [controlsDisabled])
-
-    useEffect(() => {
         if (!isSwitching) return
         if (controlledByUser) return
         setIsSwitching(false)
@@ -242,73 +215,10 @@ export function HappyComposer(props: {
 
     const handleAbort = useCallback(() => {
         if (abortDisabled) return
-        if (!abortConfirmActive) {
-            haptic('light')
-            setAbortConfirmActive(true)
-            if (abortConfirmTimer.current !== null) {
-                window.clearTimeout(abortConfirmTimer.current)
-            }
-            abortConfirmTimer.current = window.setTimeout(() => {
-                abortConfirmTimer.current = null
-                setAbortConfirmActive(false)
-            }, 2000)
-            return
-        }
-        if (abortConfirmTimer.current !== null) {
-            window.clearTimeout(abortConfirmTimer.current)
-            abortConfirmTimer.current = null
-        }
-        setAbortConfirmActive(false)
         haptic('error')
         setIsAborting(true)
         api.thread().cancelRun()
-    }, [abortDisabled, abortConfirmActive, api, haptic])
-
-    const handleTerminal = useCallback(() => {
-        if (controlsDisabled || !onTerminal) return
-        if (!terminalConfirmActive) {
-            haptic('light')
-            setTerminalConfirmActive(true)
-            if (terminalConfirmTimer.current !== null) {
-                window.clearTimeout(terminalConfirmTimer.current)
-            }
-            terminalConfirmTimer.current = window.setTimeout(() => {
-                terminalConfirmTimer.current = null
-                setTerminalConfirmActive(false)
-            }, 2000)
-            return
-        }
-        if (terminalConfirmTimer.current !== null) {
-            window.clearTimeout(terminalConfirmTimer.current)
-            terminalConfirmTimer.current = null
-        }
-        setTerminalConfirmActive(false)
-        haptic('success')
-        onTerminal()
-    }, [controlsDisabled, onTerminal, terminalConfirmActive, haptic])
-
-    const handleViewFiles = useCallback(() => {
-        if (controlsDisabled || !onViewFiles) return
-        if (!filesConfirmActive) {
-            haptic('light')
-            setFilesConfirmActive(true)
-            if (filesConfirmTimer.current !== null) {
-                window.clearTimeout(filesConfirmTimer.current)
-            }
-            filesConfirmTimer.current = window.setTimeout(() => {
-                filesConfirmTimer.current = null
-                setFilesConfirmActive(false)
-            }, 2000)
-            return
-        }
-        if (filesConfirmTimer.current !== null) {
-            window.clearTimeout(filesConfirmTimer.current)
-            filesConfirmTimer.current = null
-        }
-        setFilesConfirmActive(false)
-        haptic('success')
-        onViewFiles()
-    }, [controlsDisabled, onViewFiles, filesConfirmActive, haptic])
+    }, [abortDisabled, api, haptic])
 
     const handleSwitch = useCallback(async () => {
         if (switchDisabled || !onSwitchToRemote) return
@@ -389,25 +299,6 @@ export function HappyComposer(props: {
     )
 
     useEffect(() => {
-        if (!showSettings) return undefined
-
-        const handleClickOutside = (event: MouseEvent | TouchEvent) => {
-            const target = event.target as Node | null
-            if (!target) return
-            if (settingsOverlayRef.current && settingsOverlayRef.current.contains(target)) return
-            if (settingsButtonRef.current && settingsButtonRef.current.contains(target)) return
-            setShowSettings(false)
-        }
-
-        document.addEventListener('mousedown', handleClickOutside)
-        document.addEventListener('touchstart', handleClickOutside)
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside)
-            document.removeEventListener('touchstart', handleClickOutside)
-        }
-    }, [showSettings])
-
-    useEffect(() => {
         const handleGlobalKeyDown = (e: globalThis.KeyboardEvent) => {
             if (
                 e.key === 'm' &&
@@ -449,9 +340,16 @@ export function HappyComposer(props: {
         setShowSettings((prev) => !prev)
     }, [haptic])
 
-    const handleSubmit = useCallback(() => {
-        setShowContinueHint(false)
-    }, [])
+    const handleSubmit = useCallback(
+        (event?: ReactFormEvent<HTMLFormElement>) => {
+            if (event && !attachmentsReady) {
+                event.preventDefault()
+                return
+            }
+            setShowContinueHint(false)
+        },
+        [attachmentsReady]
+    )
 
     const handlePermissionChange = useCallback(
         (mode: PermissionMode) => {
@@ -476,16 +374,12 @@ export function HappyComposer(props: {
     const showPermissionSettings = Boolean(onPermissionModeChange && permissionModeOptions.length > 0)
     const showModelSettings = Boolean(onModelModeChange && agentFlavor !== 'codex' && agentFlavor !== 'gemini')
     const showSettingsButton = Boolean(showPermissionSettings || showModelSettings)
-    const showRenameButton = Boolean(onRename)
-    const showArchiveButton = Boolean(onArchive)
-    const showDeleteButton = Boolean(onDelete)
-    const showCloseAndNewButton = Boolean(onCloseAndNew)
-    const showFilesButton = Boolean(onViewFiles)
+    const showAbortButton = true
 
     const overlays = useMemo(() => {
         if (showSettings && (showPermissionSettings || showModelSettings)) {
             return (
-                <div ref={settingsOverlayRef} className="absolute bottom-[100%] right-0 mb-2 w-fit min-w-[200px]">
+                <div className="absolute bottom-[100%] mb-2 w-full">
                     <FloatingOverlay maxHeight={320}>
                         {showPermissionSettings ? (
                             <div className="py-2">
@@ -604,7 +498,7 @@ export function HappyComposer(props: {
     return (
         <div className={`px-3 ${bottomPaddingClass} pt-2 bg-[var(--app-bg)]`}>
             <div className="mx-auto w-full max-w-content">
-                <ComposerPrimitive.Root className="relative">
+                <ComposerPrimitive.Root className="relative" onSubmit={handleSubmit}>
                     {overlays}
 
                     <StatusBar
@@ -615,58 +509,42 @@ export function HappyComposer(props: {
                         modelMode={modelMode}
                         permissionMode={permissionMode}
                         agentFlavor={agentFlavor}
-                        showSettingsButton={showSettingsButton}
-                        onSettingsToggle={handleSettingsToggle}
-                        settingsButtonRef={settingsButtonRef}
-                        controlsDisabled={controlsDisabled}
                     />
 
-                    <div className="relative z-app-sticky overflow-visible rounded-[20px] bg-[var(--app-secondary-bg)]">
-                        <div className="flex items-start px-4 py-3">
+                    <div className="overflow-hidden rounded-[20px] bg-[var(--app-secondary-bg)]">
+                        {attachments.length > 0 ? (
+                            <div className="flex flex-wrap gap-2 px-4 pt-3">
+                                <ComposerPrimitive.Attachments components={{ Attachment: AttachmentItem }} />
+                            </div>
+                        ) : null}
+
+                        <div className="flex items-center px-4 py-3">
                             <ComposerPrimitive.Input
                                 ref={textareaRef}
                                 autoFocus={!controlsDisabled && !isTouch}
                                 placeholder={showContinueHint ? t('misc.typeMessage') : t('misc.typeAMessage')}
                                 disabled={controlsDisabled}
-                                minRows={2}
-                                maxRows={10}
-                                submitOnEnter={!isTouch}
+                                maxRows={5}
+                                submitOnEnter
                                 cancelOnEscape={false}
                                 onChange={handleChange}
                                 onSelect={handleSelect}
                                 onKeyDown={handleKeyDown}
-                                onSubmit={handleSubmit}
-                                className="flex-1 resize-none overflow-y-auto bg-transparent text-sm leading-snug text-[var(--app-fg)] placeholder-[var(--app-hint)] focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                                className="flex-1 resize-none bg-transparent text-sm leading-snug text-[var(--app-fg)] placeholder-[var(--app-hint)] focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
                             />
                         </div>
 
                         <ComposerButtons
                             canSend={canSend}
-                            threadIsRunning={threadIsRunning}
                             controlsDisabled={controlsDisabled}
-                            showRenameButton={showRenameButton}
-                            renameDisabled={sessionActionsDisabled}
-                            onRename={onRename ?? (() => {})}
-                            showArchiveButton={showArchiveButton}
-                            archiveDisabled={sessionActionsDisabled}
-                            onArchive={onArchive ?? (() => {})}
-                            showDeleteButton={showDeleteButton}
-                            deleteDisabled={sessionActionsDisabled}
-                            onDelete={onDelete ?? (() => {})}
-                            showCloseAndNewButton={showCloseAndNewButton}
-                            closeAndNewDisabled={sessionActionsDisabled}
-                            onCloseAndNew={onCloseAndNew ?? (() => {})}
+                            showSettingsButton={showSettingsButton}
+                            onSettingsToggle={handleSettingsToggle}
                             showTerminalButton={showTerminalButton}
                             terminalDisabled={controlsDisabled}
-                            terminalConfirmActive={terminalConfirmActive}
-                            onTerminal={handleTerminal}
-                            showFilesButton={showFilesButton}
-                            filesDisabled={false}
-                            filesConfirmActive={filesConfirmActive}
-                            onFiles={handleViewFiles}
+                            onTerminal={onTerminal ?? (() => {})}
+                            showAbortButton={showAbortButton}
                             abortDisabled={abortDisabled}
                             isAborting={isAborting}
-                            abortConfirmActive={abortConfirmActive}
                             onAbort={handleAbort}
                             showSwitchButton={showSwitchButton}
                             switchDisabled={switchDisabled}

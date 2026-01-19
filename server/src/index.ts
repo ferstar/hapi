@@ -135,9 +135,9 @@ async function main() {
     }
 
     // Display other configuration sources
-    console.log(`[Server] WEBAPP_HOST: ${config.webappHost} (${formatSource(config.sources.webappHost)})`)
-    console.log(`[Server] WEBAPP_PORT: ${config.webappPort} (${formatSource(config.sources.webappPort)})`)
-    console.log(`[Server] WEBAPP_URL: ${config.miniAppUrl} (${formatSource(config.sources.webappUrl)})`)
+    console.log(`[Server] HAPI_LISTEN_HOST: ${config.listenHost} (${formatSource(config.sources.listenHost)})`)
+    console.log(`[Server] HAPI_LISTEN_PORT: ${config.listenPort} (${formatSource(config.sources.listenPort)})`)
+    console.log(`[Server] HAPI_PUBLIC_URL: ${config.publicUrl} (${formatSource(config.sources.publicUrl)})`)
 
     if (!config.telegramEnabled) {
         console.log('[Server] Telegram: disabled (no TELEGRAM_BOT_TOKEN)')
@@ -164,7 +164,7 @@ async function main() {
     const pushService = new PushService(vapidKeys, vapidSubject, store)
 
     visibilityTracker = new VisibilityTracker()
-    sseManager = new SSEManager(config.sseHeartbeatMs, visibilityTracker)
+    sseManager = new SSEManager(30_000, visibilityTracker)
 
     const socketServer = createSocketServer({
         store,
@@ -179,14 +179,8 @@ async function main() {
 
     syncEngine = new SyncEngine(store, socketServer.io, socketServer.rpcRegistry, sseManager)
 
-    const disableWebPush = config.telegramEnabled && config.telegramNotification
     const notificationChannels: NotificationChannel[] = [
-        new PushNotificationChannel(pushService, sseManager, visibilityTracker, config.miniAppUrl, {
-            disableWebPush,
-            recentVisibleWindowMs: config.pushNotificationVisibleWindowMs,
-            retryBaseDelayMs: config.pushNotificationRetryBaseDelayMs,
-            retryMaxAttempts: config.pushNotificationRetryMaxAttempts,
-        }),
+        new PushNotificationChannel(pushService, sseManager, visibilityTracker, config.publicUrl),
     ]
 
     // Initialize Telegram bot (optional)
@@ -194,14 +188,8 @@ async function main() {
         happyBot = new HappyBot({
             syncEngine,
             botToken: config.telegramBotToken,
-            miniAppUrl: config.miniAppUrl,
+            publicUrl: config.publicUrl,
             store,
-            terminalRegistry: socketServer.terminalRegistry,
-            sseManager,
-            visibilityTracker,
-            retryBaseDelayMs: config.telegramNotificationRetryBaseDelayMs,
-            retryMaxAttempts: config.telegramNotificationRetryMaxAttempts,
-            recentVisibleWindowMs: config.telegramNotificationVisibleWindowMs,
         })
         // Only add to notification channels if notifications are enabled
         if (config.telegramNotification) {
@@ -231,14 +219,14 @@ async function main() {
     }
 
     console.log('')
-    console.log('[Web] Server listening on :' + config.webappPort)
-    console.log('[Web] Local:  http://localhost:' + config.webappPort)
+    console.log('[Web] Server listening on :' + config.listenPort)
+    console.log('[Web] Local:  http://localhost:' + config.listenPort)
 
     // Initialize tunnel AFTER web server is ready
     let tunnelUrl: string | null = null
     if (relayFlag.enabled) {
         tunnelManager = new TunnelManager({
-            localPort: config.webappPort,
+            localPort: config.listenPort,
             enabled: true,
             apiDomain: relayApiDomain,
             authKey: process.env.HAPI_RELAY_AUTH || null,
@@ -300,12 +288,6 @@ async function main() {
     // Handle shutdown
     const shutdown = async () => {
         console.log('\nShutting down...')
-        try {
-            socketServer.io.of('/cli').emit('server-shutdown', { reason: 'server-shutdown', at: Date.now() })
-        } catch (error) {
-            console.error('[Server] Failed to broadcast shutdown', error)
-        }
-        await new Promise((resolve) => setTimeout(resolve, 100))
         await tunnelManager?.stop()
         await happyBot?.stop()
         notificationHub?.stop()

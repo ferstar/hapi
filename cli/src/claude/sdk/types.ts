@@ -19,13 +19,15 @@ export interface SDKUserMessage extends SDKMessage {
     parent_tool_use_id?: string
     message: {
         role: 'user'
-        content: string | Array<{
-            type: string
-            text?: string
-            tool_use_id?: string
-            content?: unknown
-            [key: string]: unknown
-        }>
+        content:
+            | string
+            | Array<{
+                  type: string
+                  text?: string
+                  tool_use_id?: string
+                  content?: unknown
+                  [key: string]: unknown
+              }>
     }
 }
 
@@ -137,13 +139,15 @@ export interface SDKControlRequest {
 /**
  * Permission result type for tool calls
  */
-export type PermissionResult = {
-    behavior: 'allow'
-    updatedInput: Record<string, unknown>
-} | {
-    behavior: 'deny'
-    message: string
-}
+export type PermissionResult =
+    | {
+          behavior: 'allow'
+          updatedInput: Record<string, unknown>
+      }
+    | {
+          behavior: 'deny'
+          message: string
+      }
 
 /**
  * Callback function for tool permission checks
@@ -157,6 +161,7 @@ export interface CanCallToolCallback {
  */
 export interface QueryOptions {
     abort?: AbortSignal
+    additionalDirectories?: string[]
     allowedTools?: string[]
     appendSystemPrompt?: string
     customSystemPrompt?: string

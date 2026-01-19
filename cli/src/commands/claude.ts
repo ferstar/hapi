@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process'
 import { z } from 'zod'
 import type { StartOptions } from '@/claude/runClaude'
 import { configuration } from '@/configuration'
-import { isDaemonRunningCurrentlyInstalledHappyVersion } from '@/daemon/controlClient'
+import { isRunnerRunningCurrentlyInstalledHappyVersion } from '@/runner/controlClient'
 import { authAndSetupMachineIfNeeded } from '@/ui/auth'
 import { logger } from '@/ui/logger'
 import { initializeToken } from '@/ui/tokenInit'
@@ -46,7 +46,7 @@ export const claudeCommand: CommandDefinition = {
                 options.permissionMode = 'bypassPermissions'
                 unknownArgs.push(arg)
             } else if (arg === '--started-by') {
-                options.startedBy = args[++i] as 'daemon' | 'terminal'
+                options.startedBy = args[++i] as 'runner' | 'terminal'
             } else {
                 unknownArgs.push(arg)
                 if (i + 1 < args.length && !args[i + 1].startsWith('-')) {
@@ -73,7 +73,7 @@ ${chalk.bold('Usage:')}
   hapi notify            (not available in direct-connect mode)
   hapi server            Start the API + web server
   hapi server --relay    Start with public relay
-  hapi daemon            Manage background service that allows
+  hapi runner            Manage background service that allows
                             to spawn new sessions away from your computer
   hapi doctor            System diagnostics & troubleshooting
 
@@ -115,15 +115,15 @@ ${chalk.bold.cyan('Claude Code Options (from `claude --help`):')}
 
         logger.debug('Ensuring hapi background service is running & matches our version...')
 
-        if (!(await isDaemonRunningCurrentlyInstalledHappyVersion())) {
+        if (!(await isRunnerRunningCurrentlyInstalledHappyVersion())) {
             logger.debug('Starting hapi background service...')
 
-            const daemonProcess = spawnHappyCLI(['daemon', 'start-sync'], {
+            const runnerProcess = spawnHappyCLI(['runner', 'start-sync'], {
                 detached: true,
                 stdio: 'ignore',
                 env: process.env,
             })
-            daemonProcess.unref()
+            runnerProcess.unref()
 
             await new Promise((resolve) => setTimeout(resolve, 200))
         }
@@ -144,7 +144,7 @@ ${chalk.bold.cyan('Claude Code Options (from `claude --help`):')}
                 messageLower.includes('network error')
             ) {
                 console.error(chalk.yellow('Unable to connect to HAPI server'))
-                console.error(chalk.gray(`  Server URL: ${configuration.serverUrl}`))
+                console.error(chalk.gray(`  Server URL: ${configuration.apiUrl}`))
                 console.error(chalk.gray('  Please check your network connection or server status'))
             } else if (httpStatus === 403 && responseErrorText === 'Machine access denied') {
                 console.error(chalk.red('Machine access denied.'))

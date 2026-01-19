@@ -1,9 +1,8 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { AssistantRuntimeProvider } from '@assistant-ui/react'
-import { isPermissionModeAllowedForFlavor } from '@hapi/protocol'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ApiClient } from '@/api/client'
-import type { DecryptedMessage, ModelMode, PermissionMode, Session } from '@/types/api'
+import type { AttachmentMetadata, DecryptedMessage, ModelMode, PermissionMode, Session } from '@/types/api'
 import type { ChatBlock, NormalizedMessage } from '@/chat/types'
 import type { Suggestion } from '@/hooks/useActiveSuggestions'
 import { normalizeDecryptedMessage } from '@/chat/normalize'
@@ -12,13 +11,10 @@ import { reconcileChatBlocks } from '@/chat/reconcile'
 import { HappyComposer } from '@/components/AssistantChat/HappyComposer'
 import { HappyThread } from '@/components/AssistantChat/HappyThread'
 import { useHappyRuntime } from '@/lib/assistant-runtime'
+import { createAttachmentAdapter } from '@/lib/attachmentAdapter'
 import { SessionHeader } from '@/components/SessionHeader'
 import { usePlatform } from '@/hooks/usePlatform'
 import { useSessionActions } from '@/hooks/mutations/useSessionActions'
-import { RenameSessionDialog } from '@/components/RenameSessionDialog'
-import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
-import { useTranslation } from '@/lib/use-translation'
-import type { CliOutputBlock } from '@/chat/types'
 
 export function SessionChat(props: {
     api: ApiClient
@@ -34,13 +30,12 @@ export function SessionChat(props: {
     onBack: () => void
     onRefresh: () => void
     onLoadMore: () => Promise<unknown>
-    onSend: (text: string) => void
+    onSend: (text: string, attachments?: AttachmentMetadata[]) => void
     onFlushPending: () => void
     onAtBottomChange: (atBottom: boolean) => void
     onRetryMessage?: (localId: string) => void
     autocompleteSuggestions?: (query: string) => Promise<Suggestion[]>
 }) {
-    const { t } = useTranslation()
     const { haptic } = usePlatform()
     const navigate = useNavigate()
     const controlsDisabled = !props.session.active
@@ -49,42 +44,12 @@ export function SessionChat(props: {
     )
     const blocksByIdRef = useRef<Map<string, ChatBlock>>(new Map())
     const [forceScrollToken, setForceScrollToken] = useState(0)
-    const agentFlavor = useMemo(() => {
-        const flavor = props.session.metadata?.flavor ?? null
-        if (flavor) {
-            return flavor
-        }
-
-        const mode = props.session.permissionMode
-        if (!mode || mode === 'default') {
-            return null
-        }
-
-        if (isPermissionModeAllowedForFlavor(mode, 'codex')) {
-            return 'codex'
-        }
-        if (isPermissionModeAllowedForFlavor(mode, 'claude')) {
-            return 'claude'
-        }
-
-        return null
-    }, [props.session.metadata?.flavor, props.session.permissionMode])
-    const {
-        abortSession,
-        switchSession,
-        setPermissionMode,
-        setModelMode,
-        renameSession,
-        archiveSession,
-        restoreSession,
-        deleteSession,
-        isPending,
-    } = useSessionActions(props.api, props.session.id, agentFlavor)
-    const [renameOpen, setRenameOpen] = useState(false)
-    const [archiveOpen, setArchiveOpen] = useState(false)
-    const [restoreOpen, setRestoreOpen] = useState(false)
-    const [deleteOpen, setDeleteOpen] = useState(false)
-    const [closeAndNewOpen, setCloseAndNewOpen] = useState(false)
+    const agentFlavor = props.session.metadata?.flavor ?? null
+    const { abortSession, switchSession, setPermissionMode, setModelMode } = useSessionActions(
+        props.api,
+        props.session.id,
+        agentFlavor
+    )
 
     useEffect(() => {
         normalizedCacheRef.current.clear()
@@ -181,74 +146,35 @@ export function SessionChat(props: {
     }, [navigate, props.session.id])
 
     const handleSend = useCallback(
-        (text: string) => {
-            props.onSend(text)
+        (text: string, attachments?: AttachmentMetadata[]) => {
+            props.onSend(text, attachments)
             setForceScrollToken((token) => token + 1)
         },
         [props.onSend]
     )
 
-    const sessionTitle = useMemo(() => {
-        const metadata = props.session.metadata
-        if (metadata?.name) {
-            return metadata.name
+    const attachmentAdapter = useMemo(() => {
+        if (!props.session.active) {
+            return undefined
         }
-        if (metadata?.summary?.text) {
-            return metadata.summary.text
-        }
-        if (metadata?.path) {
-            const parts = metadata.path.split('/').filter(Boolean)
-            return parts.length > 0 ? parts[parts.length - 1] : props.session.id.slice(0, 8)
-        }
-        return props.session.id.slice(0, 8)
-    }, [props.session.id, props.session.metadata])
-
-    const displayBlocks = useMemo(() => {
-        const isNoiseCliOutput = (block: CliOutputBlock): boolean => {
-            // Skip the empty/approval-only terminal logs that show up during permission prompts.
-            const text = block.text ?? ''
-            const getTag = (tag: string): string | null => {
-                const match = text.match(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`, 'i'))
-                return match && typeof match[1] === 'string' ? match[1].trim() : null
-            }
-            const name = getTag('command-name')
-            const args = getTag('command-args')
-            const stdout = getTag('local-command-stdout')
-            const hasEmptyCommand = !name && (!args || args === '[]' || args === '')
-            const approvedOnly = typeof stdout === 'string' && stdout.trim().toLowerCase() === 'approved'
-            return hasEmptyCommand && approvedOnly
-        }
-
-        return reconciled.blocks.filter((block) => {
-            if (block.kind !== 'cli-output') return true
-            // Only filter noise when not in yolo mode; yolo users likely expect all terminal logs.
-            if (props.session.permissionMode === 'yolo') return true
-            return !isNoiseCliOutput(block)
-        })
-    }, [props.session.permissionMode, reconciled.blocks])
+        return createAttachmentAdapter(props.api, props.session.id)
+    }, [props.api, props.session.id, props.session.active])
 
     const runtime = useHappyRuntime({
         session: props.session,
-        blocks: displayBlocks,
+        blocks: reconciled.blocks,
         isSending: props.isSending,
         onSendMessage: handleSend,
         onAbort: handleAbort,
+        attachmentAdapter,
     })
-    const restoreFlavor = props.session.metadata?.flavor?.trim() || 'claude'
-    const restoreId =
-        restoreFlavor === 'codex'
-            ? props.session.metadata?.codexSessionId
-            : restoreFlavor === 'claude'
-              ? props.session.metadata?.claudeSessionId
-              : undefined
-    const canRestore =
-        !props.session.active && Boolean(props.session.metadata?.machineId && props.session.metadata?.path && restoreId)
 
     return (
         <div className="flex h-full flex-col">
             <SessionHeader
                 session={props.session}
                 onBack={props.onBack}
+                onViewFiles={props.session.metadata?.path ? handleViewFiles : undefined}
                 api={props.api}
                 onSessionDeleted={props.onBack}
             />
@@ -256,19 +182,7 @@ export function SessionChat(props: {
             {controlsDisabled ? (
                 <div className="px-3 pt-3">
                     <div className="mx-auto w-full max-w-content rounded-md bg-[var(--app-subtle-bg)] p-3 text-sm text-[var(--app-hint)]">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                            <span>Session is inactive. Controls are disabled.</span>
-                            {canRestore ? (
-                                <button
-                                    type="button"
-                                    onClick={() => setRestoreOpen(true)}
-                                    className="rounded-full border border-[var(--app-border)] px-3 py-1 text-xs text-[var(--app-fg)] transition-colors hover:bg-[var(--app-secondary-bg)]"
-                                    disabled={isPending}
-                                >
-                                    {t('session.action.restore')}
-                                </button>
-                            ) : null}
-                        </div>
+                        Session is inactive. Controls are disabled.
                     </div>
                 </div>
             ) : null}
@@ -311,88 +225,10 @@ export function SessionChat(props: {
                         onModelModeChange={handleModelModeChange}
                         onSwitchToRemote={handleSwitchToRemote}
                         onTerminal={props.session.active ? handleViewTerminal : undefined}
-                        onRename={() => setRenameOpen(true)}
-                        onArchive={() => setArchiveOpen(true)}
-                        onDelete={() => setDeleteOpen(true)}
-                        onCloseAndNew={() => setCloseAndNewOpen(true)}
-                        onViewFiles={props.session.metadata?.path ? handleViewFiles : undefined}
-                        sessionActionsDisabled={isPending}
                         autocompleteSuggestions={props.autocompleteSuggestions}
                     />
                 </div>
             </AssistantRuntimeProvider>
-
-            <RenameSessionDialog
-                isOpen={renameOpen}
-                onClose={() => setRenameOpen(false)}
-                currentName={sessionTitle}
-                onRename={renameSession}
-                isPending={isPending}
-            />
-
-            <ConfirmDialog
-                isOpen={archiveOpen}
-                onClose={() => setArchiveOpen(false)}
-                title={t('dialog.archive.title')}
-                description={t('dialog.archive.description', { name: sessionTitle })}
-                confirmLabel={t('dialog.archive.confirm')}
-                confirmingLabel={t('dialog.archive.confirming')}
-                onConfirm={archiveSession}
-                isPending={isPending}
-                destructive
-            />
-
-            {canRestore ? (
-                <ConfirmDialog
-                    isOpen={restoreOpen}
-                    onClose={() => setRestoreOpen(false)}
-                    title={t('dialog.restore.title')}
-                    description={t('dialog.restore.description', { name: sessionTitle })}
-                    confirmLabel={t('dialog.restore.confirm')}
-                    confirmingLabel={t('dialog.restore.confirming')}
-                    onConfirm={async () => {
-                        const restoredId = await restoreSession()
-                        navigate({
-                            to: '/sessions/$sessionId',
-                            params: { sessionId: restoredId },
-                            replace: true,
-                        })
-                    }}
-                    isPending={isPending}
-                />
-            ) : null}
-
-            <ConfirmDialog
-                isOpen={deleteOpen}
-                onClose={() => setDeleteOpen(false)}
-                title={t('dialog.delete.title')}
-                description={t('dialog.delete.description', { name: sessionTitle })}
-                confirmLabel={t('dialog.delete.confirm')}
-                confirmingLabel={t('dialog.delete.confirming')}
-                onConfirm={async () => {
-                    await deleteSession()
-                    props.onBack()
-                }}
-                isPending={isPending}
-                destructive
-            />
-
-            <ConfirmDialog
-                isOpen={closeAndNewOpen}
-                onClose={() => setCloseAndNewOpen(false)}
-                title={t('dialog.closeAndNew.title')}
-                description={t('dialog.closeAndNew.description')}
-                confirmLabel={t('dialog.closeAndNew.confirm')}
-                confirmingLabel={t('dialog.closeAndNew.confirming')}
-                onConfirm={async () => {
-                    if (props.session.active) {
-                        await archiveSession()
-                    }
-                    navigate({ to: '/sessions/new' })
-                }}
-                isPending={isPending}
-                destructive
-            />
         </div>
     )
 }

@@ -38,7 +38,7 @@ export function formatSessionNotification(session: Session): string {
 /**
  * Create notification keyboard for quick actions
  */
-export function createNotificationKeyboard(session: Session, miniAppUrl: string): InlineKeyboard {
+export function createNotificationKeyboard(session: Session, publicUrl: string): InlineKeyboard {
     const keyboard = new InlineKeyboard()
     const requests = session.agentState?.requests ?? null
     const hasRequests = Boolean(requests && Object.keys(requests).length > 0)
@@ -53,11 +53,11 @@ export function createNotificationKeyboard(session: Session, miniAppUrl: string)
             .text('Deny', createCallbackData(ACTIONS.DENY, session.id, reqPrefix))
         keyboard.row()
 
-        keyboard.webApp('Details', buildMiniAppDeepLink(miniAppUrl, `session_${session.id}`))
+        keyboard.webApp('Details', buildMiniAppDeepLink(publicUrl, `session_${session.id}`))
         return keyboard
     }
 
-    keyboard.webApp('Open Session', buildMiniAppDeepLink(miniAppUrl, `session_${session.id}`))
+    keyboard.webApp('Open Session', buildMiniAppDeepLink(publicUrl, `session_${session.id}`))
     return keyboard
 }
 
@@ -133,7 +133,7 @@ function formatToolArgumentsDetailed(tool: string, args: any): string {
     }
 }
 
-export function buildMiniAppDeepLink(baseUrl: string, startParam: string): string {
+function buildMiniAppDeepLink(baseUrl: string, startParam: string): string {
     try {
         const url = new URL(baseUrl)
         url.searchParams.set('startapp', startParam)

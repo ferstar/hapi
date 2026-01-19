@@ -1,4 +1,4 @@
-import type { MessageStatus } from '@/types/api'
+import type { AttachmentMetadata, MessageStatus } from '@/types/api'
 
 export type UsageData = {
     input_tokens: number
@@ -15,6 +15,7 @@ export type AgentEvent =
     | { type: 'limit-reached'; endsAt: number }
     | { type: 'ready' }
     | { type: 'api-error'; retryAttempt: number; maxRetries: number; error: unknown }
+    | { type: 'turn-duration'; durationMs: number }
     | ({ type: string } & Record<string, unknown>)
 
 export type ToolResultPermission = {
@@ -47,32 +48,36 @@ export type ToolResult = {
 
 export type NormalizedAgentContent =
     | {
-        type: 'text'
-        text: string
-        uuid: string
-        parentUUID: string | null
-    }
+          type: 'text'
+          text: string
+          uuid: string
+          parentUUID: string | null
+      }
     | {
-        type: 'reasoning'
-        text: string
-        uuid: string
-        parentUUID: string | null
-    }
+          type: 'reasoning'
+          text: string
+          uuid: string
+          parentUUID: string | null
+      }
     | ToolUse
     | ToolResult
     | { type: 'summary'; summary: string }
     | { type: 'sidechain'; uuid: string; prompt: string }
 
-export type NormalizedMessage = ({
-    role: 'user'
-    content: { type: 'text'; text: string }
-} | {
-    role: 'agent'
-    content: NormalizedAgentContent[]
-} | {
-    role: 'event'
-    content: AgentEvent
-}) & {
+export type NormalizedMessage = (
+    | {
+          role: 'user'
+          content: { type: 'text'; text: string; attachments?: AttachmentMetadata[] }
+      }
+    | {
+          role: 'agent'
+          content: NormalizedAgentContent[]
+      }
+    | {
+          role: 'event'
+          content: AgentEvent
+      }
+) & {
     id: string
     localId: string | null
     createdAt: number
@@ -115,6 +120,7 @@ export type UserTextBlock = {
     localId: string | null
     createdAt: number
     text: string
+    attachments?: AttachmentMetadata[]
     status?: MessageStatus
     originalText?: string
     meta?: unknown
@@ -166,4 +172,10 @@ export type ToolCallBlock = {
     meta?: unknown
 }
 
-export type ChatBlock = UserTextBlock | AgentTextBlock | AgentReasoningBlock | CliOutputBlock | ToolCallBlock | AgentEventBlock
+export type ChatBlock =
+    | UserTextBlock
+    | AgentTextBlock
+    | AgentReasoningBlock
+    | CliOutputBlock
+    | ToolCallBlock
+    | AgentEventBlock

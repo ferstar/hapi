@@ -9,16 +9,9 @@
  * - CLI_API_TOKEN: Shared secret for hapi CLI authentication (auto-generated if not set)
  * - TELEGRAM_BOT_TOKEN: Telegram Bot API token from @BotFather
  * - TELEGRAM_NOTIFICATION: Enable/disable Telegram notifications (default: true)
- * - TELEGRAM_NOTIFICATION_VISIBLE_WINDOW_MS: Telegram suppress window after visible activity (default: 60000)
- * - TELEGRAM_NOTIFICATION_RETRY_BASE_DELAY_MS: Telegram retry base delay (default: 30000)
- * - TELEGRAM_NOTIFICATION_RETRY_MAX_ATTEMPTS: Telegram max retry attempts (default: 3)
- * - PUSH_NOTIFICATION_VISIBLE_WINDOW_MS: Web push suppress window after visible activity (default: 60000)
- * - PUSH_NOTIFICATION_RETRY_BASE_DELAY_MS: Base retry delay for push notifications (default: 30000)
- * - PUSH_NOTIFICATION_RETRY_MAX_ATTEMPTS: Max retry attempts for push notifications (default: 3)
- * - SSE_HEARTBEAT_MS: SSE heartbeat interval (default: 30000)
- * - WEB_IDLE_TIMEOUT_MS: Bun server idle timeout (default: 120000)
- * - WEBAPP_PORT: Port for Mini App HTTP server (default: 3006)
- * - WEBAPP_URL: Public URL for Telegram Mini App
+ * - HAPI_LISTEN_HOST: Host/IP to bind the HTTP server (default: 127.0.0.1)
+ * - HAPI_LISTEN_PORT: Port for HTTP server (default: 3006)
+ * - HAPI_PUBLIC_URL: Public URL for external access (e.g., Telegram Mini App)
  * - CORS_ORIGINS: Comma-separated CORS origins
  * - HAPI_RELAY_API: Relay API domain for tunwg (default: relay.hapi.run)
  * - HAPI_RELAY_AUTH: Relay auth key for tunwg (default: hapi)
@@ -40,17 +33,9 @@ export type ConfigSource = 'env' | 'file' | 'default'
 export interface ConfigSources {
     telegramBotToken: ConfigSource
     telegramNotification: ConfigSource
-    telegramNotificationVisibleWindowMs: ConfigSource
-    telegramNotificationRetryBaseDelayMs: ConfigSource
-    telegramNotificationRetryMaxAttempts: ConfigSource
-    pushNotificationVisibleWindowMs: ConfigSource
-    pushNotificationRetryBaseDelayMs: ConfigSource
-    pushNotificationRetryMaxAttempts: ConfigSource
-    sseHeartbeatMs: ConfigSource
-    webIdleTimeoutMs: ConfigSource
-    webappHost: ConfigSource
-    webappPort: ConfigSource
-    webappUrl: ConfigSource
+    listenHost: ConfigSource
+    listenPort: ConfigSource
+    publicUrl: ConfigSource
     corsOrigins: ConfigSource
     cliApiToken: 'env' | 'file' | 'generated'
 }
@@ -64,30 +49,6 @@ class Configuration {
 
     /** Telegram notifications enabled */
     public readonly telegramNotification: boolean
-
-    /** Telegram suppress window (ms) after visible activity */
-    public readonly telegramNotificationVisibleWindowMs: number
-
-    /** Telegram retry base delay (ms) */
-    public readonly telegramNotificationRetryBaseDelayMs: number
-
-    /** Telegram retry max attempts */
-    public readonly telegramNotificationRetryMaxAttempts: number
-
-    /** Web push suppression window (ms) after visible activity */
-    public readonly pushNotificationVisibleWindowMs: number
-
-    /** Web push retry base delay (ms) */
-    public readonly pushNotificationRetryBaseDelayMs: number
-
-    /** Web push retry max attempts */
-    public readonly pushNotificationRetryMaxAttempts: number
-
-    /** SSE heartbeat interval (ms) */
-    public readonly sseHeartbeatMs: number
-
-    /** Bun server idle timeout (ms) */
-    public readonly webIdleTimeoutMs: number
 
     /** CLI auth token (shared secret) */
     public cliApiToken: string
@@ -107,14 +68,14 @@ class Configuration {
     /** SQLite DB path */
     public readonly dbPath: string
 
-    /** Port for the Mini App HTTP server */
-    public readonly webappPort: number
+    /** Port for the HTTP server */
+    public readonly listenPort: number
 
-    /** Host/IP to bind the Mini App HTTP server to */
-    public readonly webappHost: string
+    /** Host/IP to bind the HTTP server to */
+    public readonly listenHost: string
 
-    /** Public HTTPS URL for the Telegram Mini App (used in WebApp buttons) */
-    public readonly miniAppUrl: string
+    /** Public URL for external access (e.g., Telegram Mini App) */
+    public readonly publicUrl: string
 
     /** Allowed CORS origins for Mini App + Socket.IO (comma-separated env override) */
     public readonly corsOrigins: string[]
@@ -137,17 +98,9 @@ class Configuration {
         this.telegramBotToken = serverSettings.telegramBotToken
         this.telegramEnabled = Boolean(this.telegramBotToken)
         this.telegramNotification = serverSettings.telegramNotification
-        this.telegramNotificationVisibleWindowMs = serverSettings.telegramNotificationVisibleWindowMs
-        this.telegramNotificationRetryBaseDelayMs = serverSettings.telegramNotificationRetryBaseDelayMs
-        this.telegramNotificationRetryMaxAttempts = serverSettings.telegramNotificationRetryMaxAttempts
-        this.pushNotificationVisibleWindowMs = serverSettings.pushNotificationVisibleWindowMs
-        this.pushNotificationRetryBaseDelayMs = serverSettings.pushNotificationRetryBaseDelayMs
-        this.pushNotificationRetryMaxAttempts = serverSettings.pushNotificationRetryMaxAttempts
-        this.sseHeartbeatMs = serverSettings.sseHeartbeatMs
-        this.webIdleTimeoutMs = serverSettings.webIdleTimeoutMs
-        this.webappHost = serverSettings.webappHost
-        this.webappPort = serverSettings.webappPort
-        this.miniAppUrl = serverSettings.webappUrl
+        this.listenHost = serverSettings.listenHost
+        this.listenPort = serverSettings.listenPort
+        this.publicUrl = serverSettings.publicUrl
         this.corsOrigins = serverSettings.corsOrigins
 
         // CLI API token - will be set by _setCliApiToken() before create() returns

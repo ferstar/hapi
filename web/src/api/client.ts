@@ -1,5 +1,7 @@
 import type {
+    AttachmentMetadata,
     AuthResponse,
+    DeleteUploadResponse,
     FileReadResponse,
     FileSearchResponse,
     GitCommandResponse,
@@ -13,10 +15,11 @@ import type {
     PushVapidPublicKeyResponse,
     SlashCommandsResponse,
     SpawnResponse,
+    UploadFileResponse,
     VisibilityPayload,
     SessionResponse,
     SessionsResponse,
-    RestoreResponse
+    RestoreResponse,
 } from '@/types/api'
 
 type ApiClientOptions = {
@@ -84,9 +87,8 @@ export class ApiClient {
     ): Promise<T> {
         const headers = new Headers(init?.headers)
         const liveToken = this.getToken ? this.getToken() : null
-        const authToken = overrideToken !== undefined
-            ? (overrideToken ?? (liveToken ?? this.token))
-            : (liveToken ?? this.token)
+        const authToken =
+            overrideToken !== undefined ? (overrideToken ?? liveToken ?? this.token) : (liveToken ?? this.token)
         if (authToken) {
             headers.set('authorization', `Bearer ${authToken}`)
         }
@@ -96,7 +98,7 @@ export class ApiClient {
 
         const res = await fetch(this.buildUrl(path), {
             ...init,
-            headers
+            headers,
         })
 
         if (res.status === 401) {
@@ -115,41 +117,51 @@ export class ApiClient {
             throw new Error(`HTTP ${res.status} ${res.statusText}: ${body}`)
         }
 
-        return await res.json() as T
+        return (await res.json()) as T
     }
 
     async authenticate(auth: { initData: string } | { accessToken: string }): Promise<AuthResponse> {
         const res = await fetch(this.buildUrl('/api/auth'), {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
-            body: JSON.stringify(auth)
+            body: JSON.stringify(auth),
         })
 
         if (!res.ok) {
             const body = await res.text().catch(() => '')
             const code = parseErrorCode(body)
             const detail = body ? `: ${body}` : ''
-            throw new ApiError(`Auth failed: HTTP ${res.status} ${res.statusText}${detail}`, res.status, code, body || undefined)
+            throw new ApiError(
+                `Auth failed: HTTP ${res.status} ${res.statusText}${detail}`,
+                res.status,
+                code,
+                body || undefined
+            )
         }
 
-        return await res.json() as AuthResponse
+        return (await res.json()) as AuthResponse
     }
 
     async bind(auth: { initData: string; accessToken: string }): Promise<AuthResponse> {
         const res = await fetch(this.buildUrl('/api/bind'), {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
-            body: JSON.stringify(auth)
+            body: JSON.stringify(auth),
         })
 
         if (!res.ok) {
             const body = await res.text().catch(() => '')
             const code = parseErrorCode(body)
             const detail = body ? `: ${body}` : ''
-            throw new ApiError(`Bind failed: HTTP ${res.status} ${res.statusText}${detail}`, res.status, code, body || undefined)
+            throw new ApiError(
+                `Bind failed: HTTP ${res.status} ${res.statusText}${detail}`,
+                res.status,
+                code,
+                body || undefined
+            )
         }
 
-        return await res.json() as AuthResponse
+        return (await res.json()) as AuthResponse
     }
 
     async getSessions(): Promise<SessionsResponse> {
@@ -163,21 +175,21 @@ export class ApiClient {
     async subscribePushNotifications(payload: PushSubscriptionPayload): Promise<void> {
         await this.request('/api/push/subscribe', {
             method: 'POST',
-            body: JSON.stringify(payload)
+            body: JSON.stringify(payload),
         })
     }
 
     async unsubscribePushNotifications(payload: PushUnsubscribePayload): Promise<void> {
         await this.request('/api/push/subscribe', {
             method: 'DELETE',
-            body: JSON.stringify(payload)
+            body: JSON.stringify(payload),
         })
     }
 
     async setVisibility(payload: VisibilityPayload): Promise<void> {
         await this.request('/api/visibility', {
             method: 'POST',
-            body: JSON.stringify(payload)
+            body: JSON.stringify(payload),
         })
     }
 
@@ -185,7 +197,10 @@ export class ApiClient {
         return await this.request<SessionResponse>(`/api/sessions/${encodeURIComponent(sessionId)}`)
     }
 
-    async getMessages(sessionId: string, options: { beforeSeq?: number | null; limit?: number }): Promise<MessagesResponse> {
+    async getMessages(
+        sessionId: string,
+        options: { beforeSeq?: number | null; limit?: number }
+    ): Promise<MessagesResponse> {
         const params = new URLSearchParams()
         if (options.beforeSeq !== undefined && options.beforeSeq !== null) {
             params.set('beforeSeq', `${options.beforeSeq}`)
@@ -206,7 +221,9 @@ export class ApiClient {
     async getGitDiffNumstat(sessionId: string, staged: boolean): Promise<GitCommandResponse> {
         const params = new URLSearchParams()
         params.set('staged', staged ? 'true' : 'false')
-        return await this.request<GitCommandResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/git-diff-numstat?${params.toString()}`)
+        return await this.request<GitCommandResponse>(
+            `/api/sessions/${encodeURIComponent(sessionId)}/git-diff-numstat?${params.toString()}`
+        )
     }
 
     async getGitDiffFile(sessionId: string, path: string, staged?: boolean): Promise<GitCommandResponse> {
@@ -215,7 +232,9 @@ export class ApiClient {
         if (staged !== undefined) {
             params.set('staged', staged ? 'true' : 'false')
         }
-        return await this.request<GitCommandResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/git-diff-file?${params.toString()}`)
+        return await this.request<GitCommandResponse>(
+            `/api/sessions/${encodeURIComponent(sessionId)}/git-diff-file?${params.toString()}`
+        )
     }
 
     async searchSessionFiles(sessionId: string, query: string, limit?: number): Promise<FileSearchResponse> {
@@ -227,40 +246,75 @@ export class ApiClient {
             params.set('limit', `${limit}`)
         }
         const qs = params.toString()
-        return await this.request<FileSearchResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/files${qs ? `?${qs}` : ''}`)
+        return await this.request<FileSearchResponse>(
+            `/api/sessions/${encodeURIComponent(sessionId)}/files${qs ? `?${qs}` : ''}`
+        )
     }
 
     async readSessionFile(sessionId: string, path: string): Promise<FileReadResponse> {
         const params = new URLSearchParams()
         params.set('path', path)
-        return await this.request<FileReadResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/file?${params.toString()}`)
+        return await this.request<FileReadResponse>(
+            `/api/sessions/${encodeURIComponent(sessionId)}/file?${params.toString()}`
+        )
     }
 
-    async sendMessage(sessionId: string, text: string, localId?: string | null): Promise<void> {
+    async uploadFile(
+        sessionId: string,
+        filename: string,
+        content: string,
+        mimeType: string
+    ): Promise<UploadFileResponse> {
+        return await this.request<UploadFileResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/upload`, {
+            method: 'POST',
+            body: JSON.stringify({ filename, content, mimeType }),
+        })
+    }
+
+    async deleteUploadFile(sessionId: string, path: string): Promise<DeleteUploadResponse> {
+        return await this.request<DeleteUploadResponse>(
+            `/api/sessions/${encodeURIComponent(sessionId)}/upload/delete`,
+            {
+                method: 'POST',
+                body: JSON.stringify({ path }),
+            }
+        )
+    }
+
+    async sendMessage(
+        sessionId: string,
+        text: string,
+        localId?: string | null,
+        attachments?: AttachmentMetadata[]
+    ): Promise<void> {
         await this.request(`/api/sessions/${encodeURIComponent(sessionId)}/messages`, {
             method: 'POST',
-            body: JSON.stringify({ text, localId: localId ?? undefined })
+            body: JSON.stringify({
+                text,
+                localId: localId ?? undefined,
+                attachments: attachments ?? undefined,
+            }),
         })
     }
 
     async abortSession(sessionId: string): Promise<void> {
         await this.request(`/api/sessions/${encodeURIComponent(sessionId)}/abort`, {
             method: 'POST',
-            body: JSON.stringify({})
+            body: JSON.stringify({}),
         })
     }
 
     async archiveSession(sessionId: string): Promise<void> {
         await this.request(`/api/sessions/${encodeURIComponent(sessionId)}/archive`, {
             method: 'POST',
-            body: JSON.stringify({})
+            body: JSON.stringify({}),
         })
     }
 
     async restoreSession(sessionId: string): Promise<string> {
         const response = await this.request<RestoreResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/restore`, {
             method: 'POST',
-            body: JSON.stringify({})
+            body: JSON.stringify({}),
         })
         if (!response?.sessionId) {
             throw new Error('Restore succeeded but no session ID was returned')
@@ -271,41 +325,48 @@ export class ApiClient {
     async switchSession(sessionId: string): Promise<void> {
         await this.request(`/api/sessions/${encodeURIComponent(sessionId)}/switch`, {
             method: 'POST',
-            body: JSON.stringify({})
+            body: JSON.stringify({}),
         })
     }
 
     async setPermissionMode(sessionId: string, mode: PermissionMode): Promise<void> {
         await this.request(`/api/sessions/${encodeURIComponent(sessionId)}/permission-mode`, {
             method: 'POST',
-            body: JSON.stringify({ mode })
+            body: JSON.stringify({ mode }),
         })
     }
 
     async setModelMode(sessionId: string, model: ModelMode): Promise<void> {
         await this.request(`/api/sessions/${encodeURIComponent(sessionId)}/model`, {
             method: 'POST',
-            body: JSON.stringify({ model })
+            body: JSON.stringify({ model }),
         })
     }
 
     async approvePermission(
         sessionId: string,
         requestId: string,
-        modeOrOptions?: 'default' | 'acceptEdits' | 'bypassPermissions' | 'plan' | {
-            mode?: 'default' | 'acceptEdits' | 'bypassPermissions' | 'plan'
-            allowTools?: string[]
-            decision?: 'approved' | 'approved_for_session' | 'denied' | 'abort'
-            answers?: Record<string, string[]>
-        }
+        modeOrOptions?:
+            | 'default'
+            | 'acceptEdits'
+            | 'bypassPermissions'
+            | 'plan'
+            | {
+                  mode?: 'default' | 'acceptEdits' | 'bypassPermissions' | 'plan'
+                  allowTools?: string[]
+                  decision?: 'approved' | 'approved_for_session' | 'denied' | 'abort'
+                  answers?: Record<string, string[]>
+              }
     ): Promise<void> {
-        const body = typeof modeOrOptions === 'string' || modeOrOptions === undefined
-            ? { mode: modeOrOptions }
-            : modeOrOptions
-        await this.request(`/api/sessions/${encodeURIComponent(sessionId)}/permissions/${encodeURIComponent(requestId)}/approve`, {
-            method: 'POST',
-            body: JSON.stringify(body)
-        })
+        const body =
+            typeof modeOrOptions === 'string' || modeOrOptions === undefined ? { mode: modeOrOptions } : modeOrOptions
+        await this.request(
+            `/api/sessions/${encodeURIComponent(sessionId)}/permissions/${encodeURIComponent(requestId)}/approve`,
+            {
+                method: 'POST',
+                body: JSON.stringify(body),
+            }
+        )
     }
 
     async denyPermission(
@@ -315,25 +376,25 @@ export class ApiClient {
             decision?: 'approved' | 'approved_for_session' | 'denied' | 'abort'
         }
     ): Promise<void> {
-        await this.request(`/api/sessions/${encodeURIComponent(sessionId)}/permissions/${encodeURIComponent(requestId)}/deny`, {
-            method: 'POST',
-            body: JSON.stringify(options ?? {})
-        })
+        await this.request(
+            `/api/sessions/${encodeURIComponent(sessionId)}/permissions/${encodeURIComponent(requestId)}/deny`,
+            {
+                method: 'POST',
+                body: JSON.stringify(options ?? {}),
+            }
+        )
     }
 
     async getMachines(): Promise<MachinesResponse> {
         return await this.request<MachinesResponse>('/api/machines')
     }
 
-    async checkMachinePathsExists(
-        machineId: string,
-        paths: string[]
-    ): Promise<MachinePathsExistsResponse> {
+    async checkMachinePathsExists(machineId: string, paths: string[]): Promise<MachinePathsExistsResponse> {
         return await this.request<MachinePathsExistsResponse>(
             `/api/machines/${encodeURIComponent(machineId)}/paths/exists`,
             {
                 method: 'POST',
-                body: JSON.stringify({ paths })
+                body: JSON.stringify({ paths }),
             }
         )
     }
@@ -348,7 +409,7 @@ export class ApiClient {
     ): Promise<SpawnResponse> {
         return await this.request<SpawnResponse>(`/api/machines/${encodeURIComponent(machineId)}/spawn`, {
             method: 'POST',
-            body: JSON.stringify({ directory, agent, yolo, sessionType, worktreeName })
+            body: JSON.stringify({ directory, agent, yolo, sessionType, worktreeName }),
         })
     }
 
@@ -361,13 +422,13 @@ export class ApiClient {
     async renameSession(sessionId: string, name: string): Promise<void> {
         await this.request(`/api/sessions/${encodeURIComponent(sessionId)}`, {
             method: 'PATCH',
-            body: JSON.stringify({ name })
+            body: JSON.stringify({ name }),
         })
     }
 
     async deleteSession(sessionId: string): Promise<void> {
         await this.request(`/api/sessions/${encodeURIComponent(sessionId)}`, {
-            method: 'DELETE'
+            method: 'DELETE',
         })
     }
 }
