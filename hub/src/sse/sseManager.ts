@@ -104,6 +104,15 @@ export class SSEManager {
         return successCount
     }
 
+    hasAnyConnection(namespace: string): boolean {
+        for (const connection of this.connections.values()) {
+            if (connection.namespace === namespace) {
+                return true
+            }
+        }
+        return false
+    }
+
     broadcast(event: SyncEvent): void {
         for (const connection of this.connections.values()) {
             if (!this.shouldSend(connection, event)) {
