@@ -140,6 +140,9 @@ export class SSEManager {
 
         this.heartbeatTimer = setInterval(() => {
             for (const connection of this.connections.values()) {
+                if (this.visibilityTracker.isVisibleConnection(connection.id)) {
+                    this.visibilityTracker.markVisible(connection.namespace)
+                }
                 void Promise.resolve(connection.sendHeartbeat()).catch(() => {
                     this.unsubscribe(connection.id)
                 })
